@@ -26,12 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 public class ConnectionSource implements IConnectionSource {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConnectionSource.class);
@@ -56,6 +51,7 @@ public class ConnectionSource implements IConnectionSource {
         this.connectionPool = connectionPool;
         this.config = config;
 
+        //this.connectionExecutor = currentThreadExecutorService();
         this.connectionExecutor = Executors.newFixedThreadPool(
                 config.getMaxPendingConnectionRequests(),
                 CountingThreadFactory.daemonFactory("bt.net.pool.connection-worker"));
@@ -68,6 +64,16 @@ public class ConnectionSource implements IConnectionSource {
                 new IncomingConnectionListener(connectionAcceptors, connectionExecutor, connectionPool, config);
         lifecycleBinder.onStartup("Initialize incoming connection acceptors", incomingListener::startup);
         lifecycleBinder.onShutdown("Shutdown incoming connection acceptors", incomingListener::shutdown);
+    }
+
+    private static ExecutorService currentThreadExecutorService() {
+        ThreadPoolExecutor.CallerRunsPolicy callerRunsPolicy = new ThreadPoolExecutor.CallerRunsPolicy();
+        return new ThreadPoolExecutor(0, 1, 0L, TimeUnit.SECONDS, new SynchronousQueue<>(), callerRunsPolicy) {
+            @Override
+            public void execute(Runnable command) {
+                callerRunsPolicy.rejectedExecution(command, this);
+            }
+        };
     }
 
     @Override
@@ -124,23 +130,30 @@ public class ConnectionSource implements IConnectionSource {
                 return connection;
             }
 
+            final Thread currentThread = Thread.currentThread();
             connection = CompletableFuture.supplyAsync(() -> {
                 try {
+                    final Thread futureThread = Thread.currentThread();
+                    assert currentThread != futureThread : "currentThreadExecutorService() isn't supported";
                     ConnectionResult connectionResult =
                             connectionFactory.createOutgoingConnection(peer, torrentId);
                     if (connectionResult.isSuccess()) {
                         PeerConnection established = connectionResult.getConnection();
                         PeerConnection added = connectionPool.addConnectionIfAbsent(established);
+                        assert added == established : "ConnectionSource should be singleton";
+/*
                         if (added != established) {
                             established.closeQuietly();
                         }
+*/
                         return ConnectionResult.success(added);
                     } else {
                         return connectionResult;
                     }
                 } finally {
                     synchronized (pendingConnections) {
-                        pendingConnections.remove(peer);
+                        final CompletableFuture<ConnectionResult> current = pendingConnections.remove(peer);
+                        assert current != null : "currentThreadExecutorService() isn't supported";
                     }
                 }
             }, connectionExecutor).whenComplete((acquiredConnection, throwable) -> {

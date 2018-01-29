@@ -29,7 +29,7 @@ import java.util.Objects;
  */
 public class TorrentId {
 
-    private static final int TORRENT_ID_LENGTH = 20;
+    public static final int TORRENT_ID_LENGTH = 20;
 
     /**
      * @return Length in bytes
