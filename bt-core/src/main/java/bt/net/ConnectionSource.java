@@ -66,6 +66,7 @@ public class ConnectionSource implements IConnectionSource {
         lifecycleBinder.onShutdown("Shutdown incoming connection acceptors", incomingListener::shutdown);
     }
 
+    @SuppressWarnings("unused")
     private static ExecutorService currentThreadExecutorService() {
         ThreadPoolExecutor.CallerRunsPolicy callerRunsPolicy = new ThreadPoolExecutor.CallerRunsPolicy();
         return new ThreadPoolExecutor(0, 1, 0L, TimeUnit.SECONDS, new SynchronousQueue<>(), callerRunsPolicy) {
@@ -130,11 +131,8 @@ public class ConnectionSource implements IConnectionSource {
                 return connection;
             }
 
-            final Thread currentThread = Thread.currentThread();
             connection = CompletableFuture.supplyAsync(() -> {
                 try {
-                    final Thread futureThread = Thread.currentThread();
-                    assert currentThread != futureThread : "currentThreadExecutorService() isn't supported";
                     ConnectionResult connectionResult =
                             connectionFactory.createOutgoingConnection(peer, torrentId);
                     if (connectionResult.isSuccess()) {
@@ -152,8 +150,7 @@ public class ConnectionSource implements IConnectionSource {
                     }
                 } finally {
                     synchronized (pendingConnections) {
-                        final CompletableFuture<ConnectionResult> current = pendingConnections.remove(peer);
-                        assert current != null : "currentThreadExecutorService() isn't supported";
+                        pendingConnections.remove(peer);
                     }
                 }
             }, connectionExecutor).whenComplete((acquiredConnection, throwable) -> {
@@ -171,6 +168,10 @@ public class ConnectionSource implements IConnectionSource {
             });
 
             pendingConnections.put(peer, connection);
+            if (connection.isDone()) {
+                // precondition: connectionExecutor is CurrentThreadExecutorService
+                pendingConnections.remove(peer);
+            }
             return connection;
         }
     }
