@@ -1,4 +1,4 @@
-package bt.torrent.bitfield;
+package bt.torrent;
 
 import org.junit.Test;
 

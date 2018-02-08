@@ -1,4 +1,4 @@
-package bt.torrent.bitfield;
+package bt.torrent;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -115,6 +115,36 @@ public class BitSetAccumulator {
             removeMaxIterationCount = iterationCount;
         }
         return remainder;
+    }
+
+    public BitSet getOrdinal() {
+        if (bitSets.isEmpty()) {
+            return new BitSet(length);
+        }
+        return getOrdinal(null, false);
+    }
+
+    public BitSet getOrdinal(BitSet mask) {
+        if (mask.length() > length) {
+            throw new IllegalArgumentException();
+        }
+        if (bitSets.isEmpty()) {
+            return new BitSet(length);
+        }
+        final int maskCardinality = mask.cardinality();
+        if (maskCardinality == 0) {
+            return new BitSet(length);
+        }
+        final boolean useMask = maskCardinality < length;
+        return getOrdinal(mask, useMask);
+    }
+
+    private BitSet getOrdinal(BitSet mask, boolean useMask) {
+        final BitSet result = copyOf(bitSets.get(0));
+        if (useMask) {
+            result.and(mask);
+        }
+        return result;
     }
 
     public BitSet getRarest() {
