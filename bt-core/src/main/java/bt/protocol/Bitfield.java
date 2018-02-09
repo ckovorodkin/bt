@@ -21,6 +21,9 @@ package bt.protocol;
  */
 public final class Bitfield implements Message {
 
+    /**
+     * Since 1.7 that field contains BitSet-like bit order.
+     */
     private byte[] bitfield;
 
     /**

@@ -184,6 +184,37 @@ public class Protocols {
     }
 
     /**
+     * @param bytes byte array, witch bit order will be changed
+     * @since 1.7
+     */
+    public static void reverseBitOrder(byte[] bytes) {
+        for (int i = 0; i < bytes.length; ++i) {
+            bytes[i] = reverseBitOrder(bytes[i]);
+        }
+    }
+
+    /**
+     * @param b byte, that bit order will be changed
+     * @return value that represent changed bit order of b
+     * @since 1.7
+     */
+    public static byte reverseBitOrder(byte b) {
+        if (b == 0 || b == -1) {
+            return b;
+        }
+        byte converted = 0;
+        converted |= (b & 0b1000_0000) >> 7;
+        converted |= (b & 0b0100_0000) >> 5;
+        converted |= (b & 0b0010_0000) >> 3;
+        converted |= (b & 0b0001_0000) >> 1;
+        converted |= (b & 0b0000_1000) << 1;
+        converted |= (b & 0b0000_0100) << 3;
+        converted |= (b & 0b0000_0010) << 5;
+        converted |= (b & 0b0000_0001) << 7;
+        return (byte) (converted & 0xFF);
+    }
+
+    /**
      * Convenience method to check if actual message length is the same as expected length.
      *
      * @throws InvalidMessageException if <b>expectedLength</b> != <b>actualLength</b>

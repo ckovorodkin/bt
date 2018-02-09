@@ -19,8 +19,8 @@ package bt.processor.torrent;
 import bt.data.Bitfield;
 import bt.event.EventSink;
 import bt.metainfo.Torrent;
-import bt.processor.TerminateOnErrorProcessingStage;
 import bt.processor.ProcessingStage;
+import bt.processor.TerminateOnErrorProcessingStage;
 import bt.processor.listener.ProcessingEvent;
 import bt.runtime.Config;
 import bt.torrent.BitfieldBasedStatistics;
@@ -31,15 +31,11 @@ import bt.torrent.data.IDataWorkerFactory;
 import bt.torrent.messaging.Assignments;
 import bt.torrent.messaging.BitfieldConsumer;
 import bt.torrent.messaging.GenericConsumer;
-import bt.torrent.messaging.IncompletePiecesValidator;
 import bt.torrent.messaging.MetadataProducer;
 import bt.torrent.messaging.PeerRequestConsumer;
 import bt.torrent.messaging.PieceConsumer;
 import bt.torrent.messaging.RequestProducer;
-import bt.torrent.selector.PieceSelector;
-import bt.torrent.selector.ValidatingSelector;
-
-import java.util.function.Predicate;
+import bt.torrent.order.PieceOrder;
 
 public class InitializeTorrentProcessingStage<C extends TorrentContext> extends TerminateOnErrorProcessingStage<C> {
 
@@ -67,10 +63,10 @@ public class InitializeTorrentProcessingStage<C extends TorrentContext> extends 
 
         Bitfield bitfield = descriptor.getDataDescriptor().getBitfield();
         BitfieldBasedStatistics pieceStatistics = createPieceStatistics(bitfield);
-        PieceSelector selector = createSelector(context.getPieceSelector(), bitfield);
+        final PieceOrder pieceOrder = context.getPieceOrder();
 
         DataWorker dataWorker = createDataWorker(descriptor);
-        Assignments assignments = new Assignments(bitfield, selector, pieceStatistics, config);
+        Assignments assignments = new Assignments(bitfield, pieceOrder, pieceStatistics, config);
 
         context.getRouter().registerMessagingAgent(GenericConsumer.consumer());
         context.getRouter().registerMessagingAgent(new BitfieldConsumer(bitfield, pieceStatistics, eventSink));
@@ -86,12 +82,6 @@ public class InitializeTorrentProcessingStage<C extends TorrentContext> extends 
 
     private BitfieldBasedStatistics createPieceStatistics(Bitfield bitfield) {
         return new BitfieldBasedStatistics(bitfield);
-    }
-
-    private PieceSelector createSelector(PieceSelector selector,
-                                         Bitfield bitfield) {
-        Predicate<Integer> validator = new IncompletePiecesValidator(bitfield);
-        return new ValidatingSelector(validator, selector);
     }
 
     private DataWorker createDataWorker(TorrentDescriptor descriptor) {

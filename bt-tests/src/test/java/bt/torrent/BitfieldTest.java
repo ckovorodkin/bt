@@ -18,6 +18,7 @@ package bt.torrent;
 
 import bt.data.Bitfield;
 import bt.data.ChunkDescriptor;
+import bt.protocol.Protocols;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -40,6 +41,7 @@ public class BitfieldTest extends BaseBitfieldTest {
         bitfield.markVerified(7);
 
         byte expectedBitfield = (byte) (1 + (0b1 << 4) + (0b1 << 7));
+        expectedBitfield = Protocols.reverseBitOrder(expectedBitfield);
 
         assertArrayEquals(new byte[]{expectedBitfield}, bitfield.getBitmask());
         assertNotEquals(0, bitfield.getPiecesComplete());

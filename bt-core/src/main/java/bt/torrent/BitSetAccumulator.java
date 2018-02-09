@@ -13,6 +13,7 @@ public class BitSetAccumulator {
     private final int length;
     private final List<BitSet> bitSets;
     private int firstIncompleteIndex;
+    private int addBitMaxIterationCount = 0;
     private int addMaxIterationCount = 0;
     private int removeMaxIterationCount = 0;
     private int rarestMaxIterationCount = 0;
@@ -27,11 +28,66 @@ public class BitSetAccumulator {
         return length;
     }
 
+    public double getRatio(BitSet addition) {
+        if (addition.length() > length) {
+            throw new IllegalArgumentException();
+        }
+        final int cardinality = addition.cardinality();
+        if (addition.cardinality() == 0) {
+            return getRatio();
+        }
+        if (addition.cardinality() == length) {
+            return getRatio() + 1;
+        }
+        if (bitSets.isEmpty()) {
+            assert firstIncompleteIndex == 0;
+            return cardinality / (double) length;
+        }
+        if (firstIncompleteIndex == bitSets.size()) {
+            return firstIncompleteIndex + cardinality / (double) length;
+        }
+        add(addition);
+        final double ratio = getRatio();
+        remove(addition);
+        return ratio;
+    }
     public double getRatio() {
         if (bitSets.isEmpty()) {
+            assert firstIncompleteIndex == 0;
             return 0.0;
         }
+        if (firstIncompleteIndex == bitSets.size()) {
+            return firstIncompleteIndex;
+        }
         return firstIncompleteIndex + bitSets.get(firstIncompleteIndex).cardinality() / (double) length;
+    }
+
+    public void add(int bit) {
+        if (bit >= length) {
+            throw new IllegalArgumentException();
+        }
+        boolean added = false;
+        int iterationCount = 0;
+        for (int index = firstIncompleteIndex; index < bitSets.size(); index++) {
+            iterationCount++;
+            final BitSet current = bitSets.get(index);
+            added = !current.get(bit);
+            if (added) {
+                current.set(bit);
+                if (current.cardinality() == length) {
+                    firstIncompleteIndex++;
+                }
+                break;
+            }
+        }
+        if (addBitMaxIterationCount < iterationCount) {
+            addBitMaxIterationCount = iterationCount;
+        }
+        if (!added) {
+            final BitSet remainder = new BitSet(length);
+            remainder.set(bit);
+            bitSets.add(remainder);
+        }
     }
 
     public void add(BitSet bitSet) {
@@ -84,6 +140,8 @@ public class BitSetAccumulator {
         }
         if (cardinality == length && bitSets.get(0).cardinality() == length) {
             bitSets.remove(0);
+            firstIncompleteIndex--;
+            assert firstIncompleteIndex >= 0;
             remainder.clear();
             return remainder;
         }
@@ -203,6 +261,10 @@ public class BitSetAccumulator {
 
     BitSet get(int order) {
         return bitSets.get(order);
+    }
+
+    int getAddBitMaxIterationCount() {
+        return addBitMaxIterationCount;
     }
 
     int getAddMaxIterationCount() {

@@ -20,6 +20,7 @@ import bt.net.Peer;
 import bt.torrent.messaging.ConnectionState;
 import bt.torrent.messaging.TorrentWorker;
 
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -46,6 +47,8 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
      */
     private final AtomicLong uploadedToDisconnected;
 
+    private final BitSet pieces;
+
     private final TorrentDescriptor descriptor;
     private final TorrentWorker worker;
 
@@ -53,6 +56,7 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
         this.recentAmountsForConnectedPeers = new HashMap<>();
         this.downloadedFromDisconnected = new AtomicLong();
         this.uploadedToDisconnected = new AtomicLong();
+        this.pieces = new BitSet();
         this.descriptor = descriptor;
         this.worker = worker;
     }
@@ -73,6 +77,21 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
         } else {
             return 1;
         }
+    }
+
+    @Override
+    public BitSet getPieces() {
+        pieces.clear();
+        if (descriptor.getDataDescriptor() != null) {
+            final BitSet bitSet = descriptor.getDataDescriptor().getBitfield().getBitSet();
+            pieces.or(bitSet);
+        }
+        return pieces;
+    }
+
+    @Override
+    public double getRatio() {
+        return worker.getRatio();
     }
 
     @Override

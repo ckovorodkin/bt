@@ -19,8 +19,10 @@ package bt.protocol.handler;
 import bt.protocol.Bitfield;
 import bt.protocol.DecodingContext;
 import bt.protocol.EncodingContext;
+import bt.protocol.Protocols;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 public final class BitfieldHandler extends UniqueMessageHandler<Bitfield> {
 
@@ -35,10 +37,13 @@ public final class BitfieldHandler extends UniqueMessageHandler<Bitfield> {
 
     @Override
     public boolean doEncode(EncodingContext context, Bitfield message, ByteBuffer buffer) {
-        if (buffer.remaining() < message.getBitfield().length) {
+        final byte[] bitfield = message.getBitfield();
+        if (buffer.remaining() < bitfield.length) {
             return false;
         }
-        buffer.put(message.getBitfield());
+        final byte[] bytes = Arrays.copyOf(bitfield, bitfield.length);
+        Protocols.reverseBitOrder(bytes);
+        buffer.put(bytes);
         return true;
     }
 
@@ -50,6 +55,7 @@ public final class BitfieldHandler extends UniqueMessageHandler<Bitfield> {
         if (buffer.remaining() >= length) {
             byte[] bitfield = new byte[length];
             buffer.get(bitfield);
+            Protocols.reverseBitOrder(bitfield);
             context.setMessage(new Bitfield(bitfield));
             consumed = length;
         }

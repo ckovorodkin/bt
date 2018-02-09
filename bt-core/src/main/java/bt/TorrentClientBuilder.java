@@ -28,11 +28,10 @@ import bt.processor.listener.ProcessingEvent;
 import bt.processor.magnet.MagnetContext;
 import bt.processor.torrent.TorrentContext;
 import bt.runtime.BtRuntime;
-import bt.torrent.PieceSelectionStrategy;
-import bt.torrent.selector.PieceSelector;
-import bt.torrent.selector.RarestFirstSelector;
-import bt.torrent.selector.SelectorAdapter;
-import bt.torrent.selector.SequentialSelector;
+import bt.torrent.order.PieceOrder;
+import bt.torrent.order.RandomizedRarestPieceOrder;
+import bt.torrent.order.RarestPieceOrder;
+import bt.torrent.order.SequentialPieceOrder;
 
 import java.net.URL;
 import java.util.ArrayList;
@@ -50,7 +49,7 @@ public class TorrentClientBuilder<B extends TorrentClientBuilder> extends BaseCl
     private Supplier<Torrent> torrentSupplier;
     private MagnetUri magnetUri;
 
-    private PieceSelector pieceSelector;
+    private PieceOrder pieceOrder;
 
     private List<Consumer<Torrent>> torrentConsumers;
 
@@ -61,7 +60,7 @@ public class TorrentClientBuilder<B extends TorrentClientBuilder> extends BaseCl
      */
     protected TorrentClientBuilder() {
         // set default piece selector
-        this.pieceSelector = RarestFirstSelector.randomizedRarest();
+        this.pieceOrder = new RarestPieceOrder();
     }
 
     /**
@@ -134,55 +133,43 @@ public class TorrentClientBuilder<B extends TorrentClientBuilder> extends BaseCl
         return (B) this;
     }
 
-    /**
-     * Set piece selection strategy
-     *
-     * @see #selector(PieceSelector)
-     * @since 1.4
-     */
-    @SuppressWarnings("unchecked")
-    public B selector(PieceSelectionStrategy pieceSelectionStrategy) {
-        Objects.requireNonNull(pieceSelectionStrategy, "Missing piece selection strategy");
-        this.pieceSelector = new SelectorAdapter(pieceSelectionStrategy);
-        return (B) this;
-    }
 
     /**
      * Set piece selection strategy
      *
-     * @since 1.4
+     * @since 1.7
      */
     @SuppressWarnings("unchecked")
-    public B selector(PieceSelector pieceSelector) {
-        this.pieceSelector = Objects.requireNonNull(pieceSelector, "Missing piece selector");
+    public B pieceOrder(PieceOrder  pieceOrder) {
+        this.pieceOrder = Objects.requireNonNull(pieceOrder, "Missing piece selector");
         return (B) this;
     }
 
     /**
      * Use sequential piece selection strategy
      *
-     * @since 1.4
+     * @since 1.7
      */
-    public B sequentialSelector() {
-       return selector(SequentialSelector.sequential());
+    public B sequentialPieceOrder() {
+       return pieceOrder(new  SequentialPieceOrder());
     }
 
     /**
      * Use rarest first piece selection strategy
      *
-     * @since 1.4
+     * @since 1.7
      */
-    public B rarestSelector() {
-       return selector(RarestFirstSelector.rarest());
+    public B rarestPieceOrder() {
+       return pieceOrder(new RarestPieceOrder());
     }
 
     /**
      * Use rarest first piece selection strategy
      *
-     * @since 1.4
+     * @since 1.7
      */
-    public B randomizedRarestSelector() {
-       return selector(RarestFirstSelector.randomizedRarest());
+    public B randomizedRarestPieceOrder() {
+       return pieceOrder(new RandomizedRarestPieceOrder());
     }
 
     /**
@@ -211,11 +198,11 @@ public class TorrentClientBuilder<B extends TorrentClientBuilder> extends BaseCl
 
         ProcessingContext context;
         if (torrentUrl != null) {
-            context = new TorrentContext(pieceSelector, storage, () -> fetchTorrentFromUrl(runtime, torrentUrl));
+            context = new TorrentContext(pieceOrder, storage, () -> fetchTorrentFromUrl(runtime, torrentUrl));
         } else if (torrentSupplier != null) {
-            context = new TorrentContext(pieceSelector, storage, torrentSupplier);
+            context = new TorrentContext(pieceOrder, storage, torrentSupplier);
         } else if (this.magnetUri != null) {
-            context = new MagnetContext(magnetUri, pieceSelector, storage);
+            context = new MagnetContext(magnetUri, pieceOrder, storage);
         } else {
             throw new IllegalStateException("Missing torrent supplier, torrent URL or magnet URI");
         }

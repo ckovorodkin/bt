@@ -56,15 +56,15 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         this.deserializer = new MessageDeserializer(peer, protocol);
         this.serializer = new MessageSerializer(peer, protocol);
 
-        this.inboundBuffer = inboundBuffer;
-        // process existing data immediately (e.g. there might be leftovers from MSE handshake)
-        fireDataReceived();
-
         this.outboundBuffer = outboundBuffer;
 
         this.decoders = decoders;
         this.encoders = encoders;
         this.inboundQueue = new LinkedBlockingQueue<>();
+
+        this.inboundBuffer = inboundBuffer;
+        // process existing data immediately (e.g. there might be leftovers from MSE handshake)
+        fireDataReceived();
     }
 
     @Override

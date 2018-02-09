@@ -27,9 +27,9 @@ import bt.protocol.crypto.EncryptionPolicy;
 import bt.runtime.BtClient;
 import bt.runtime.BtRuntime;
 import bt.runtime.Config;
-import bt.torrent.selector.PieceSelector;
-import bt.torrent.selector.RarestFirstSelector;
-import bt.torrent.selector.SequentialSelector;
+import bt.torrent.order.PieceOrder;
+import bt.torrent.order.RandomizedRarestPieceOrder;
+import bt.torrent.order.SequentialPieceOrder;
 import com.google.inject.Module;
 import com.googlecode.lanterna.input.KeyStroke;
 import joptsimple.OptionException;
@@ -129,12 +129,12 @@ public class CliClient  {
                 .build();
 
         Storage storage = new FileSystemStorage(options.getTargetDirectory());
-        PieceSelector selector = options.downloadSequentially() ?
-                SequentialSelector.sequential() : RarestFirstSelector.randomizedRarest();
+        final PieceOrder pieceOrder =
+                options.downloadSequentially() ? new SequentialPieceOrder() : new RandomizedRarestPieceOrder();
 
         BtClientBuilder clientBuilder = Bt.client(runtime)
                 .storage(storage)
-                .selector(selector);
+                .pieceOrder(pieceOrder);
 
         if (options.getMetainfoFile() != null) {
             clientBuilder = clientBuilder.torrent(toUrl(options.getMetainfoFile()));

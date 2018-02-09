@@ -17,9 +17,7 @@
 package bt.data;
 
 import bt.BtException;
-import bt.protocol.Protocols;
 
-import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Optional;
@@ -45,11 +43,10 @@ public class Bitfield {
     }
 
     /**
-     * Standard bittorrent bitfield, where n-th bit
-     * (counting from high position to low)
+     * BitSet, where n-th bit
      * indicates the availability of n-th piece.
      */
-    private final byte[] value;
+    private final BitSet bitSet;
 
     /**
      * Total number of pieces in torrent.
@@ -78,7 +75,7 @@ public class Bitfield {
     public Bitfield(List<ChunkDescriptor> chunks) {
         this.chunks = Optional.of(chunks);
         this.piecesTotal = chunks.size();
-        this.value = new byte[getBitmaskLength(piecesTotal)];
+        this.bitSet = new BitSet(piecesTotal);
         this.piecesComplete = 0;
         this.lock = new ReentrantLock();
     }
@@ -111,19 +108,15 @@ public class Bitfield {
                     "), bitmask length (" + value.length + "). Expected bitmask length: " + expectedBitmaskLength);
         }
 
-        this.value = value;
+        this.bitSet = BitSet.valueOf(value);
         this.chunks = Optional.empty();
         this.piecesTotal = piecesTotal;
-        this.piecesComplete = getPiecesComplete(value);
+        this.piecesComplete = bitSet.cardinality();
         this.lock = new ReentrantLock();
     }
 
     private static int getBitmaskLength(int piecesTotal) {
         return (int) Math.ceil(piecesTotal / 8d);
-    }
-
-    private static int getPiecesComplete(byte[] value) {
-        return BitSet.valueOf(value).cardinality();
     }
 
     /**
@@ -135,10 +128,27 @@ public class Bitfield {
     public byte[] getBitmask() {
         lock.lock();
         try {
-            return Arrays.copyOf(value, value.length);
+            final byte[] bytes = bitSet.toByteArray();
+            final int length = (piecesTotal + 7) / 8;
+            if (bytes.length == length) {
+                return bytes;
+            }
+            final byte[] result = new byte[length];
+            System.arraycopy(bytes, 0, result, 0, bytes.length);
+            return result;
         } finally {
             lock.unlock();
         }
+    }
+
+    /**
+     * @return BitSet that describes status of all pieces.
+     *         If bit i is set to 1, then piece with index i
+     *         is in {@link PieceStatus#COMPLETE_VERIFIED} status.
+     * @since 1.7
+     */
+    public BitSet getBitSet() {
+        return (BitSet) bitSet.clone();
     }
 
     /**
@@ -180,7 +190,7 @@ public class Bitfield {
         boolean verified;
         lock.lock();
         try {
-            verified = Protocols.getBit(value, pieceIndex) == 1;
+            verified = bitSet.get(pieceIndex);
         } finally {
             lock.unlock();
         }
@@ -237,8 +247,8 @@ public class Bitfield {
 
         lock.lock();
         try {
-            Protocols.setBit(value, pieceIndex);
-            piecesComplete = getPiecesComplete(value);
+            bitSet.set(pieceIndex);
+            piecesComplete = bitSet.cardinality();
         } finally {
             lock.unlock();
         }

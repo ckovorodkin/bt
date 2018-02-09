@@ -16,53 +16,54 @@
 
 package bt.torrent.messaging;
 
+import bt.data.Bitfield;
 import bt.net.Peer;
 import bt.runtime.Config;
-import bt.data.Bitfield;
 import bt.torrent.BitfieldBasedStatistics;
-import bt.torrent.selector.PieceSelector;
+import bt.torrent.order.PieceOrder;
+import bt.torrent.order.RandomPieceOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
 import java.util.Set;
 
 public class Assignments {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Assignments.class);
 
-    private static final int MAX_ASSIGNED_PIECES_PER_PEER = 50;
-
     private Config config;
 
-    private Bitfield bitfield;
-    private PieceSelector selector;
+    private Bitfield localBitfield;
+    private PieceOrder pieceOrder;
     private BitfieldBasedStatistics pieceStatistics;
 
-    private Set<Integer> assignedPieces;
+    private BitSet assignedPieces;
     private Map<Peer, Assignment> assignments;
-    private Map<Peer, LinkedList<Integer>> peers;
+    private Set<Peer> peers;
 
-    private Random random;
+    private final PieceOrder endgamePieceOrder;
 
-    public Assignments(Bitfield bitfield, PieceSelector selector, BitfieldBasedStatistics pieceStatistics, Config config) {
-        this.bitfield = bitfield;
-        this.selector = selector;
+    public Assignments(
+            Bitfield localBitfield, PieceOrder pieceOrder, BitfieldBasedStatistics pieceStatistics, Config config) {
+        this.localBitfield = localBitfield;
+        this.pieceOrder = pieceOrder;
         this.pieceStatistics = pieceStatistics;
         this.config = config;
 
-        this.assignedPieces = new HashSet<>();
+        this.assignedPieces = new BitSet();
         this.assignments = new HashMap<>();
-        this.peers = new HashMap<>();
+        this.peers = new HashSet<>();
 
-        this.random = new Random(System.currentTimeMillis());
+        this.endgamePieceOrder = new RandomPieceOrder();
+    }
+
+    public double getRatio() {
+        return pieceStatistics.getRatio();
     }
 
     public Assignment get(Peer peer) {
@@ -72,7 +73,7 @@ public class Assignments {
     public void remove(Assignment assignment) {
         assignment.abort();
         assignments.remove(assignment.getPeer());
-        assignedPieces.remove(assignment.getPiece());
+        assignedPieces.clear(assignment.getPiece());
     }
 
     public int count() {
@@ -84,58 +85,35 @@ public class Assignments {
     }
 
     public Optional<Assignment> assign(Peer peer) {
-        LinkedList<Integer> pieces = peers.get(peer);
-        if (pieces == null || pieces.isEmpty()) {
-            return Optional.empty();
-        }
+        final BitSet mask = localBitfield.getBitSet();
+        mask.flip(0, pieceStatistics.getPiecesTotal());
+        //todo mask.andNot(completedPieces);
 
-        boolean endgame = isEndgame();
-
-        StringBuilder buf = LOGGER.isTraceEnabled() ? new StringBuilder() : null;
-        if (LOGGER.isTraceEnabled()) {
-            buf.append("Trying to claim next assignment for peer ");
-            buf.append(peer);
-            buf.append(". Number of remaining pieces: ");
-            buf.append(bitfield.getPiecesRemaining());
-            buf.append(", number of pieces in progress: ");
-            buf.append(assignedPieces.size());
-            buf.append(", endgame: " + endgame);
-            buf.append(". ");
-        }
-
-        Optional<Integer> selectedPiece;
+        final PieceOrder pieceOrder;
+        final boolean endgame = isEndgame();
         if (endgame) {
             // take random piece to minimize number of pieces
             // requested from different peers at the same time
-            Integer pieceIndex = pieces.remove(random.nextInt(pieces.size()));
-            selectedPiece = Optional.of(pieceIndex);
+            pieceOrder = this.endgamePieceOrder;
         } else {
-
-            Integer piece;
-            boolean assigned = true;
-            Iterator<Integer> iter = pieces.iterator();
-            do {
-                piece = iter.next();
-                if (bitfield.isComplete(piece)) {
-                    iter.remove();
-                    if (LOGGER.isTraceEnabled()) {
-                        buf.append("Checking next piece in queue: {" + piece + "}; piece is completed. ");
-                    }
-                    continue;
-                }
-                assigned = assignedPieces.contains(piece);
-                if (assigned && LOGGER.isTraceEnabled()) {
-                    buf.append("Checking next piece in queue: {" + piece + "}; piece is assigned. ");
-                }
-            } while (assigned && iter.hasNext());
-
-            if (!assigned) {
-                iter.remove();
-            }
-            selectedPiece = assigned ? Optional.empty() : Optional.of(piece);
+            mask.andNot(assignedPieces);
+            pieceOrder = this.pieceOrder;
         }
 
-        if (LOGGER.isTraceEnabled()) {
+        final int next = pieceStatistics.next(pieceOrder, mask, peer);
+
+        final Optional<Integer> selectedPiece = next == -1 ? Optional.empty() : Optional.of(next);
+
+        if (LOGGER.isDebugEnabled()) {
+            StringBuilder buf = new StringBuilder();
+            buf.append("Trying to claim next assignment for peer ");
+            buf.append(peer);
+            buf.append(". Number of remaining pieces: ");
+            buf.append(localBitfield.getPiecesRemaining());
+            buf.append(", number of pieces in progress: ");
+            buf.append(assignedPieces.cardinality());
+            buf.append(", endgame: ").append(endgame);
+            buf.append(". ");
             if (selectedPiece.isPresent()) {
                 buf.append(" => Assigning piece #");
                 buf.append(selectedPiece.get());
@@ -143,7 +121,7 @@ public class Assignments {
             } else {
                 buf.append(" => No pieces to assign.");
             }
-            LOGGER.trace(buf.toString());
+            LOGGER.debug(buf.toString());
         }
 
         return selectedPiece.isPresent() ? Optional.of(assign(peer, selectedPiece.get())) : Optional.empty();
@@ -152,97 +130,55 @@ public class Assignments {
     private boolean isEndgame() {
         // if all remaining pieces are requested,
         // that would mean that we have entered the "endgame" mode
-        return bitfield.getPiecesRemaining() <= assignedPieces.size();
+        return localBitfield.getPiecesRemaining() <= assignedPieces.cardinality();
     }
 
     private Assignment assign(Peer peer, Integer piece) {
         Assignment assignment = new Assignment(peer, piece, config.getMaxPieceReceivingTime());
         assignments.put(peer, assignment);
-        assignedPieces.add(piece);
-        if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("Assigning piece #{} to peer: {}", piece, peer);
+        assignedPieces.set(piece);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Assigning piece #{} to peer: {}", piece, peer);
         }
         return assignment;
     }
 
     /**
-     * Updates the lists of interesting pieces for the provided peers.
-     *
      * @return Collection of peers that have interesting pieces and can be given an assignment
      */
     // TODO: select from seeders first
-    public Set<Peer> update(Set<Peer> ready, Set<Peer> choking) {
-        Iterator<Integer> suggested = selector.getNextPieces(pieceStatistics).iterator();
-        if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("Updating assignments. Piece selector has more pieces: {}, number of ready peers: {}, number of assigned peers: {}",
-                    suggested.hasNext(), ready.size(), assignments.size());
+    public Set<Peer> getInteresting(Set<Peer> ready, Set<Peer> choking) {
+        final Set<Peer> result = new HashSet<>();
+        final BitSet mask = localBitfield.getBitSet();
+        mask.flip(0, pieceStatistics.getPiecesTotal());
+        //todo mask.andNot(completedPieces);
+        if (!isEndgame()) {
+            mask.andNot(assignedPieces);
         }
-        final Set<Peer> readyPeers = new HashSet<>(ready);
-        while (suggested.hasNext() && readyPeers.size() > 0) {
-            Integer piece = suggested.next();
-
-            final Iterator<Peer> iter = readyPeers.iterator();
-            while (iter.hasNext()) {
-                Peer peer = iter.next();
-                Optional<Bitfield> peerBitfield = pieceStatistics.getPeerBitfield(peer);
-                if (!peerBitfield.isPresent()) {
-                    iter.remove();
-                    continue;
-                }
-                LinkedList<Integer> queue = peers.get(peer);
-                if (queue != null && queue.size() > MAX_ASSIGNED_PIECES_PER_PEER) {
-                    iter.remove();
-                    continue;
-                }
-                boolean hasPiece = peerBitfield.get().isVerified(piece);
-                if (hasPiece) {
-                    if (queue == null) {
-                        queue = new LinkedList<>();
-                        peers.put(peer, queue);
-                    }
-                    if (!queue.contains(piece)) {
-                        queue.add(piece);
-                        if (queue.size() > MAX_ASSIGNED_PIECES_PER_PEER) {
-                            iter.remove();
-                        }
-                        if (LOGGER.isTraceEnabled()) {
-                            LOGGER.trace("Adding piece #{} to peer's queue: {}. Number of pieces in peer's queue: {}",
-                                    piece, peer, queue.size());
-                        }
-                    }
-                }
-            }
-        }
-
-        Iterator<Map.Entry<Peer, LinkedList<Integer>>> iter = peers.entrySet().iterator();
-        while (iter.hasNext()) {
-            Map.Entry<Peer, LinkedList<Integer>> e = iter.next();
-            Peer peer = e.getKey();
-            LinkedList<Integer> pieces = e.getValue();
-
-            if (!ready.contains(peer) || pieces.isEmpty()) {
-                iter.remove();
-            }
-        }
-
-        Set<Peer> result = new HashSet<>(peers.keySet());
-        for (Peer peer : choking) {
-            if (hasInterestingPieces(peer)) {
+        for (Peer peer : ready) {
+            final int next = pieceStatistics.next(pieceOrder, mask, peer);
+            if (next != -1) {
                 result.add(peer);
             }
         }
-
+        peers.clear();
+        peers.addAll(result);
+        //noinspection Convert2streamapi
+        for (Peer peer : choking) {
+            if (hasInterestingPieces(peer, mask)) {
+                result.add(peer);
+            }
+        }
         return result;
     }
 
-    private boolean hasInterestingPieces(Peer peer) {
+    private boolean hasInterestingPieces(Peer peer, BitSet mask) {
         Optional<Bitfield> peerBitfieldOptional = pieceStatistics.getPeerBitfield(peer);
         if (!peerBitfieldOptional.isPresent()) {
             return false;
         }
-        BitSet peerBitfield = BitSet.valueOf(peerBitfieldOptional.get().getBitmask());
-        BitSet localBitfield = BitSet.valueOf(bitfield.getBitmask());
-        peerBitfield.andNot(localBitfield);
+        BitSet peerBitfield = peerBitfieldOptional.get().getBitSet();
+        peerBitfield.and(mask);
         return peerBitfield.cardinality() > 0;
     }
 }

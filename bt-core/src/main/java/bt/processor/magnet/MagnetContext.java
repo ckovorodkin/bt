@@ -21,7 +21,7 @@ import bt.magnet.MagnetUri;
 import bt.metainfo.TorrentId;
 import bt.processor.torrent.TorrentContext;
 import bt.torrent.messaging.BitfieldCollectingConsumer;
-import bt.torrent.selector.PieceSelector;
+import bt.torrent.order.PieceOrder;
 
 import java.util.Optional;
 
@@ -30,8 +30,8 @@ public class MagnetContext extends TorrentContext {
     private final MagnetUri magnetUri;
     private volatile BitfieldCollectingConsumer bitfieldConsumer;
 
-    public MagnetContext(MagnetUri magnetUri, PieceSelector pieceSelector, Storage storage) {
-        super(pieceSelector, storage, null);
+    public MagnetContext(MagnetUri magnetUri, PieceOrder pieceOrder, Storage storage) {
+        super(pieceOrder, storage, null);
         this.magnetUri = magnetUri;
     }
 

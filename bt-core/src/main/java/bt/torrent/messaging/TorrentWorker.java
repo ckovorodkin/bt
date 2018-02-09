@@ -119,6 +119,11 @@ public class TorrentWorker {
         });
     }
 
+    public double getRatio() {
+        final Assignments assignments = getAssignments();
+        return assignments == null ? 0.0 : assignments.getRatio();
+    }
+
     private Bitfield getBitfield() {
         return bitfieldSupplier.get();
     }
@@ -297,7 +302,7 @@ public class TorrentWorker {
             }
         });
 
-        Set<Peer> interesting = assignments.update(ready, choking);
+        Set<Peer> interesting = assignments.getInteresting(ready, choking);
 
         ready.stream().filter(peer -> !interesting.contains(peer)).forEach(peer -> {
             getWorker(peer).ifPresent(worker -> {

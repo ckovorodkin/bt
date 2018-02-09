@@ -17,9 +17,10 @@
 package bt.torrent;
 
 import bt.data.Bitfield;
-import bt.data.Bitfield.PieceStatus;
 import bt.net.Peer;
+import bt.torrent.order.PieceOrder;
 
+import java.util.BitSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,11 +31,11 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @since 1.0
  */
-public class BitfieldBasedStatistics implements PieceStatistics {
+public class BitfieldBasedStatistics {
 
     private final Bitfield localBitfield;
     private final Map<Peer, Bitfield> peerBitfields;
-    private final int[] pieceTotals;
+    private final BitSetAccumulator accumulator;
 
     /**
      * Create statistics, based on the local peer's bitfield.
@@ -44,7 +45,7 @@ public class BitfieldBasedStatistics implements PieceStatistics {
     public BitfieldBasedStatistics(Bitfield localBitfield) {
         this.localBitfield = localBitfield;
         this.peerBitfields = new ConcurrentHashMap<>();
-        this.pieceTotals = new int[localBitfield.getPiecesTotal()];
+        this.accumulator = new BitSetAccumulator(localBitfield.getPiecesTotal());
     }
 
     /**
@@ -55,17 +56,13 @@ public class BitfieldBasedStatistics implements PieceStatistics {
      */
     public void addBitfield(Peer peer, Bitfield bitfield) {
         validateBitfieldLength(bitfield);
-        peerBitfields.put(peer, bitfield);
-
-        for (int i = 0; i < pieceTotals.length; i++) {
-            if (bitfield.getPieceStatus(i) == PieceStatus.COMPLETE_VERIFIED) {
-                incrementPieceTotal(i);
+        final Bitfield previous = peerBitfields.put(peer, bitfield);
+        synchronized (accumulator) {
+            if (previous != null) { //todo is it ok?
+                accumulator.remove(previous.getBitSet());
             }
+            accumulator.add(bitfield.getBitSet());
         }
-    }
-
-    private synchronized void incrementPieceTotal(int i) {
-        pieceTotals[i]++;
     }
 
     /**
@@ -79,22 +76,15 @@ public class BitfieldBasedStatistics implements PieceStatistics {
         if (bitfield == null) {
             return;
         }
-
-        for (int i = 0; i < pieceTotals.length; i++) {
-            if (bitfield.getPieceStatus(i) == PieceStatus.COMPLETE_VERIFIED) {
-                decrementPieceTotal(i);
-            }
+        synchronized (accumulator) {
+            accumulator.remove(bitfield.getBitSet());
         }
     }
 
-    private synchronized void decrementPieceTotal(int i) {
-        pieceTotals[i]--;
-    }
-
     private void validateBitfieldLength(Bitfield bitfield) {
-        if (bitfield.getPiecesTotal() != pieceTotals.length) {
+        if (bitfield.getPiecesTotal() != accumulator.getLength()) {
             throw new IllegalArgumentException("Bitfield has invalid length (" + bitfield.getPiecesTotal() +
-                    "). Expected number of pieces: " + pieceTotals.length);
+                    "). Expected number of pieces: " + accumulator.getLength());
         }
     }
 
@@ -107,7 +97,7 @@ public class BitfieldBasedStatistics implements PieceStatistics {
     public void addPiece(Peer peer, Integer pieceIndex) {
         Bitfield bitfield = peerBitfields.get(peer);
         if (bitfield == null) {
-            bitfield = new Bitfield(localBitfield.getPiecesTotal());
+            bitfield = new Bitfield(accumulator.getLength());
             Bitfield existing = peerBitfields.putIfAbsent(peer, bitfield);
             if (existing != null) {
                 bitfield = existing;
@@ -119,8 +109,10 @@ public class BitfieldBasedStatistics implements PieceStatistics {
 
     private synchronized void markPieceVerified(Bitfield bitfield, Integer pieceIndex) {
         if (!bitfield.isVerified(pieceIndex)) {
-            bitfield.markVerified(pieceIndex);
-            incrementPieceTotal(pieceIndex);
+            synchronized (accumulator) {
+                bitfield.markVerified(pieceIndex);
+                accumulator.add(pieceIndex);
+            }
         }
     }
 
@@ -133,13 +125,29 @@ public class BitfieldBasedStatistics implements PieceStatistics {
         return Optional.ofNullable(peerBitfields.get(peer));
     }
 
-    @Override
-    public synchronized int getCount(int pieceIndex) {
-        return pieceTotals[pieceIndex];
+    public int getPiecesTotal() {
+        return accumulator.getLength();
     }
 
-    @Override
-    public int getPiecesTotal() {
-        return pieceTotals.length;
+    public double getRatio() {
+        final double ratio;
+        final BitSet local = localBitfield.getBitSet();
+        synchronized (accumulator) {
+            ratio = accumulator.getRatio(local);
+        }
+        return ratio;
+    }
+
+
+    public int next(PieceOrder pieceOrder, BitSet mask, Peer peer) {
+        final Bitfield bitfield = peerBitfields.get(peer);
+        if (bitfield == null) {
+            return -1;
+        }
+        final BitSet mixedMask = bitfield.getBitSet();
+        mixedMask.and(mask);
+        synchronized (accumulator) {
+            return pieceOrder.next(accumulator, mixedMask);
+        }
     }
 }
