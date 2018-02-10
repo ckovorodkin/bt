@@ -87,7 +87,6 @@ public class Assignments {
     public Optional<Assignment> assign(Peer peer) {
         final BitSet mask = localBitfield.getPieces();
         mask.flip(0, pieceStatistics.getPiecesTotal());
-        //todo mask.andNot(completedPieces);
 
         final PieceOrder pieceOrder;
         final boolean endgame = isEndgame();
@@ -151,7 +150,6 @@ public class Assignments {
         final Set<Peer> result = new HashSet<>();
         final BitSet mask = localBitfield.getPieces();
         mask.flip(0, pieceStatistics.getPiecesTotal());
-        //todo mask.andNot(completedPieces);
         if (!isEndgame()) {
             mask.andNot(assignedPieces);
         }

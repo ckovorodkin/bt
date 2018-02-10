@@ -19,8 +19,6 @@ package bt.data;
 import bt.BtException;
 
 import java.util.BitSet;
-import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -39,7 +37,7 @@ public class Bitfield {
      * @since 1.0
      */
     public enum PieceStatus {
-        /*EMPTY, PARTIAL,*/INCOMPLETE, COMPLETE, COMPLETE_VERIFIED
+        /*EMPTY, PARTIAL,*/INCOMPLETE, /*COMPLETE,*/ COMPLETE_VERIFIED
     }
 
     /**
@@ -58,27 +56,7 @@ public class Bitfield {
      */
     private volatile int piecesComplete;
 
-    /**
-     * List of torrent's chunk descriptors.
-     * Absent when this Bitfield instance is describing data that some peer has.
-     */
-    private final Optional<List<ChunkDescriptor>> chunks;
-
     private final ReentrantLock lock;
-
-    /**
-     * Creates "local" bitfield from a list of chunk descriptors.
-     *
-     * @param chunks List of torrent's chunk descriptors.
-     * @since 1.0
-     */
-    public Bitfield(List<ChunkDescriptor> chunks) {
-        this.chunks = Optional.of(chunks);
-        this.piecesTotal = chunks.size();
-        this.pieces = new BitSet(piecesTotal);
-        this.piecesComplete = 0;
-        this.lock = new ReentrantLock();
-    }
 
     /**
      * Creates empty bitfield.
@@ -109,7 +87,6 @@ public class Bitfield {
         }
 
         this.pieces = BitSet.valueOf(value);
-        this.chunks = Optional.empty();
         this.piecesTotal = piecesTotal;
         this.piecesComplete = pieces.cardinality();
         this.lock = new ReentrantLock();
@@ -148,7 +125,12 @@ public class Bitfield {
      * @since 1.7
      */
     public BitSet getPieces() {
-        return (BitSet) pieces.clone();
+        lock.lock();
+        try {
+            return (BitSet) pieces.clone();
+        } finally {
+            lock.unlock();
+        }
     }
 
     /**
@@ -185,8 +167,6 @@ public class Bitfield {
     public PieceStatus getPieceStatus(int pieceIndex) {
         validatePieceIndex(pieceIndex);
 
-        PieceStatus status;
-
         boolean verified;
         lock.lock();
         try {
@@ -195,20 +175,7 @@ public class Bitfield {
             lock.unlock();
         }
 
-        if (verified) {
-            status = PieceStatus.COMPLETE_VERIFIED;
-        } else if (chunks.isPresent()) {
-            ChunkDescriptor chunk = chunks.get().get(pieceIndex);
-            if (chunk.isComplete()) {
-                status = PieceStatus.COMPLETE;
-            } else {
-                status = PieceStatus.INCOMPLETE;
-            }
-        } else {
-            status = PieceStatus.INCOMPLETE;
-        }
-
-        return status;
+        return verified ? PieceStatus.COMPLETE_VERIFIED : PieceStatus.INCOMPLETE;
     }
 
     /**
@@ -220,7 +187,7 @@ public class Bitfield {
      */
     public boolean isComplete(int pieceIndex) {
         PieceStatus pieceStatus = getPieceStatus(pieceIndex);
-        return (pieceStatus == PieceStatus.COMPLETE || pieceStatus == PieceStatus.COMPLETE_VERIFIED);
+        return (/*pieceStatus == PieceStatus.COMPLETE ||*/ pieceStatus == PieceStatus.COMPLETE_VERIFIED);
     }
 
     /**
@@ -243,7 +210,7 @@ public class Bitfield {
      * @since 1.0
      */
     public void markVerified(int pieceIndex) {
-        assertChunkComplete(pieceIndex);
+        validatePieceIndex(pieceIndex);
 
         lock.lock();
         try {
@@ -251,16 +218,6 @@ public class Bitfield {
             piecesComplete = pieces.cardinality();
         } finally {
             lock.unlock();
-        }
-    }
-
-    private void assertChunkComplete(int pieceIndex) {
-        validatePieceIndex(pieceIndex);
-
-        if (chunks.isPresent()) {
-            if (!chunks.get().get(pieceIndex).isComplete()) {
-                throw new IllegalStateException("Chunk is not complete: " + pieceIndex);
-            }
         }
     }
 

@@ -35,6 +35,6 @@ public class IncompletePiecesValidator implements Predicate<Integer> {
 
     private boolean isComplete(Integer pieceIndex) {
         Bitfield.PieceStatus pieceStatus = bitfield.getPieceStatus(pieceIndex);
-        return pieceStatus == Bitfield.PieceStatus.COMPLETE || pieceStatus == Bitfield.PieceStatus.COMPLETE_VERIFIED;
+        return /*pieceStatus == Bitfield.PieceStatus.COMPLETE ||*/pieceStatus == Bitfield.PieceStatus.COMPLETE_VERIFIED;
     }
 }
