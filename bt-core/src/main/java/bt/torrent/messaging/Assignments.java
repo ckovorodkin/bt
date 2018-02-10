@@ -85,7 +85,7 @@ public class Assignments {
     }
 
     public Optional<Assignment> assign(Peer peer) {
-        final BitSet mask = localBitfield.getBitSet();
+        final BitSet mask = localBitfield.getPieces();
         mask.flip(0, pieceStatistics.getPiecesTotal());
         //todo mask.andNot(completedPieces);
 
@@ -149,7 +149,7 @@ public class Assignments {
     // TODO: select from seeders first
     public Set<Peer> getInteresting(Set<Peer> ready, Set<Peer> choking) {
         final Set<Peer> result = new HashSet<>();
-        final BitSet mask = localBitfield.getBitSet();
+        final BitSet mask = localBitfield.getPieces();
         mask.flip(0, pieceStatistics.getPiecesTotal());
         //todo mask.andNot(completedPieces);
         if (!isEndgame()) {

@@ -19,7 +19,7 @@ public class MaskingPieceOrder implements PieceOrder {
 
     @Override
     public int next(BitSetAccumulator accumulator, BitSet mask) {
-        final BitSet mixedMask = this.mask.getBitSet();
+        final BitSet mixedMask = this.mask.getPieces();
         mixedMask.and(mask);
         return delegate.next(accumulator, mixedMask);
     }

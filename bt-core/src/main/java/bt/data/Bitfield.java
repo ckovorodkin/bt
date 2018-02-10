@@ -46,7 +46,7 @@ public class Bitfield {
      * BitSet, where n-th bit
      * indicates the availability of n-th piece.
      */
-    private final BitSet bitSet;
+    private final BitSet pieces;
 
     /**
      * Total number of pieces in torrent.
@@ -75,7 +75,7 @@ public class Bitfield {
     public Bitfield(List<ChunkDescriptor> chunks) {
         this.chunks = Optional.of(chunks);
         this.piecesTotal = chunks.size();
-        this.bitSet = new BitSet(piecesTotal);
+        this.pieces = new BitSet(piecesTotal);
         this.piecesComplete = 0;
         this.lock = new ReentrantLock();
     }
@@ -108,15 +108,15 @@ public class Bitfield {
                     "), bitmask length (" + value.length + "). Expected bitmask length: " + expectedBitmaskLength);
         }
 
-        this.bitSet = BitSet.valueOf(value);
+        this.pieces = BitSet.valueOf(value);
         this.chunks = Optional.empty();
         this.piecesTotal = piecesTotal;
-        this.piecesComplete = bitSet.cardinality();
+        this.piecesComplete = pieces.cardinality();
         this.lock = new ReentrantLock();
     }
 
     private static int getBitmaskLength(int piecesTotal) {
-        return (int) Math.ceil(piecesTotal / 8d);
+        return (piecesTotal + 7) / 8;
     }
 
     /**
@@ -128,8 +128,8 @@ public class Bitfield {
     public byte[] getBitmask() {
         lock.lock();
         try {
-            final byte[] bytes = bitSet.toByteArray();
-            final int length = (piecesTotal + 7) / 8;
+            final byte[] bytes = pieces.toByteArray();
+            final int length = getBitmaskLength(piecesTotal);
             if (bytes.length == length) {
                 return bytes;
             }
@@ -147,8 +147,8 @@ public class Bitfield {
      *         is in {@link PieceStatus#COMPLETE_VERIFIED} status.
      * @since 1.7
      */
-    public BitSet getBitSet() {
-        return (BitSet) bitSet.clone();
+    public BitSet getPieces() {
+        return (BitSet) pieces.clone();
     }
 
     /**
@@ -190,7 +190,7 @@ public class Bitfield {
         boolean verified;
         lock.lock();
         try {
-            verified = bitSet.get(pieceIndex);
+            verified = pieces.get(pieceIndex);
         } finally {
             lock.unlock();
         }
@@ -247,8 +247,8 @@ public class Bitfield {
 
         lock.lock();
         try {
-            bitSet.set(pieceIndex);
-            piecesComplete = bitSet.cardinality();
+            pieces.set(pieceIndex);
+            piecesComplete = pieces.cardinality();
         } finally {
             lock.unlock();
         }
