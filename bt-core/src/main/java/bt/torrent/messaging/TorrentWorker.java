@@ -27,7 +27,7 @@ import bt.protocol.Interested;
 import bt.protocol.Message;
 import bt.protocol.NotInterested;
 import bt.runtime.Config;
-import bt.torrent.BitfieldBasedStatistics;
+import bt.torrent.PiecesStatistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,7 +72,7 @@ public class TorrentWorker {
 
     private Supplier<Bitfield> bitfieldSupplier;
     private Supplier<Assignments> assignmentsSupplier;
-    private Supplier<BitfieldBasedStatistics> statisticsSupplier;
+    private Supplier<PiecesStatistics> statisticsSupplier;
 
     public TorrentWorker(TorrentId torrentId,
                          IMessageDispatcher dispatcher,
@@ -80,7 +80,7 @@ public class TorrentWorker {
                          IPeerWorkerFactory peerWorkerFactory,
                          Supplier<Bitfield> bitfieldSupplier,
                          Supplier<Assignments> assignmentsSupplier,
-                         Supplier<BitfieldBasedStatistics> statisticsSupplier,
+                         Supplier<PiecesStatistics> statisticsSupplier,
                          EventSource eventSource,
                          Config config) {
         this.torrentId = torrentId;
@@ -132,7 +132,7 @@ public class TorrentWorker {
         return assignmentsSupplier.get();
     }
 
-    private BitfieldBasedStatistics getStatistics() {
+    private PiecesStatistics getStatistics() {
         return statisticsSupplier.get();
     }
 
@@ -255,7 +255,7 @@ public class TorrentWorker {
         return System.currentTimeMillis() - lastUpdatedAssignments;
     }
 
-    private void processDisconnectedPeers(Assignments assignments, BitfieldBasedStatistics statistics) {
+    private void processDisconnectedPeers(Assignments assignments, PiecesStatistics statistics) {
         Peer disconnectedPeer;
         while ((disconnectedPeer = disconnectedPeers.poll()) != null) {
             if (assignments != null) {
@@ -269,7 +269,7 @@ public class TorrentWorker {
             }
             timeoutedPeers.remove(disconnectedPeer);
             if (statistics != null) {
-                statistics.removeBitfield(disconnectedPeer);
+                statistics.removePieces(disconnectedPeer);
             }
         }
     }

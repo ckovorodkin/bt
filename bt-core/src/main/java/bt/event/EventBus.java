@@ -16,12 +16,12 @@
 
 package bt.event;
 
-import bt.data.Bitfield;
 import bt.metainfo.TorrentId;
 import bt.net.Peer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -76,11 +76,11 @@ public class EventBus implements EventSink, EventSource {
     }
 
     @Override
-    public void firePeerBitfieldUpdated(TorrentId torrentId, Peer peer, Bitfield bitfield) {
+    public void firePeerBitfieldUpdated(TorrentId torrentId, Peer peer, BitSet pieces, int piecesTotal) {
         long timestamp = System.currentTimeMillis();
         if (hasListeners(PeerBitfieldUpdatedEvent.class)) {
             long id = nextId();
-            fireEvent(new PeerBitfieldUpdatedEvent(id, timestamp, torrentId, peer, bitfield));
+            fireEvent(new PeerBitfieldUpdatedEvent(id, timestamp, torrentId, peer, pieces, piecesTotal));
         }
     }
 

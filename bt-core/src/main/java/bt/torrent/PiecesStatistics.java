@@ -29,88 +29,94 @@ import java.util.concurrent.ConcurrentHashMap;
  * Acts as a storage for peers' bitfields and provides aggregate piece statistics.
  * This class is thread-safe.
  *
- * @since 1.0
+ * @since 1.7
  */
-public class BitfieldBasedStatistics {
+public class PiecesStatistics {
 
     private final Bitfield localBitfield;
-    private final Map<Peer, Bitfield> peerBitfields;
+    private final Map<Peer, BitSet> peerPiecesMap;
     private final BitSetAccumulator accumulator;
 
     /**
      * Create statistics, based on the local peer's bitfield.
      *
-     * @since 1.0
+     * @since 1.7
      */
-    public BitfieldBasedStatistics(Bitfield localBitfield) {
+    public PiecesStatistics(Bitfield localBitfield) {
         this.localBitfield = localBitfield;
-        this.peerBitfields = new ConcurrentHashMap<>();
+        this.peerPiecesMap = new ConcurrentHashMap<>();
         this.accumulator = new BitSetAccumulator(localBitfield.getPiecesTotal());
     }
 
     /**
      * Add peer's bitfield.
-     * For each piece, that the peer has, total count will be incremented by 1.
      *
-     * @since 1.0
+     * @since 1.7
      */
-    public void addBitfield(Peer peer, Bitfield bitfield) {
-        validateBitfieldLength(bitfield);
-        final Bitfield previous = peerBitfields.put(peer, bitfield);
+    public void addPieces(Peer peer, BitSet pieces) {
+        addPieces0(peer, copyOf(pieces));
+    }
+
+    private void addPieces0(Peer peer, BitSet pieces) {
+        validateLength(pieces.length());
         synchronized (accumulator) {
+            final BitSet previous = peerPiecesMap.put(peer, pieces);
             if (previous != null) { //todo is it ok?
-                accumulator.remove(previous.getBitSet());
+                remove0(previous);
             }
-            accumulator.add(bitfield.getBitSet());
+            accumulator.add(pieces);
         }
     }
 
     /**
      * Remove peer's bitfield.
-     * For each piece, that the peer has, total count will be decremented by 1.
      *
-     * @since 1.0
+     * @since 1.7
      */
-    public void removeBitfield(Peer peer) {
-        Bitfield bitfield = peerBitfields.remove(peer);
-        if (bitfield == null) {
+    public void removePieces(Peer peer) {
+        if (!peerPiecesMap.containsKey(peer)) {
             return;
         }
         synchronized (accumulator) {
-            accumulator.remove(bitfield.getBitSet());
+            final BitSet previous = peerPiecesMap.remove(peer);
+            if (previous != null) {
+                remove0(previous);
+            }
         }
     }
 
-    private void validateBitfieldLength(Bitfield bitfield) {
-        if (bitfield.getPiecesTotal() != accumulator.getLength()) {
-            throw new IllegalArgumentException("Bitfield has invalid length (" + bitfield.getPiecesTotal() +
+    private void remove0(BitSet previous) {
+        final BitSet remainder = accumulator.remove(previous);
+        if (remainder.cardinality() > 0) {
+            assert false;
+            accumulator.clear();
+            peerPiecesMap.values().forEach(accumulator::add);
+        }
+    }
+
+    private void validateLength(int length) {
+        if (length > accumulator.getLength()) {
+            throw new IllegalArgumentException("Bitfield has invalid length (" + length +
                     "). Expected number of pieces: " + accumulator.getLength());
         }
     }
 
     /**
      * Update peer's bitfield by indicating that the peer has a given piece.
-     * Total count of the specified piece will be incremented by 1.
      *
-     * @since 1.0
+     * @since 1.7
      */
-    public void addPiece(Peer peer, Integer pieceIndex) {
-        Bitfield bitfield = peerBitfields.get(peer);
-        if (bitfield == null) {
-            bitfield = new Bitfield(accumulator.getLength());
-            Bitfield existing = peerBitfields.putIfAbsent(peer, bitfield);
-            if (existing != null) {
-                bitfield = existing;
+    public void addPiece(Peer peer, int pieceIndex) {
+        validateLength(pieceIndex);
+        synchronized (accumulator) {
+            BitSet pieces = peerPiecesMap.get(peer);
+            if (pieces == null) {
+                pieces = new BitSet(accumulator.getLength());
+                final BitSet previous = peerPiecesMap.put(peer, pieces);
+                assert previous == null;
             }
-        }
-
-        markPieceVerified(bitfield, pieceIndex);
-    }
-
-    private synchronized void markPieceVerified(Bitfield bitfield, Integer pieceIndex) {
-        if (!bitfield.isVerified(pieceIndex)) {
-            synchronized (accumulator) {
-                bitfield.markVerified(pieceIndex);
+            if (!pieces.get(pieceIndex)) {
+                pieces.set(pieceIndex);
                 accumulator.add(pieceIndex);
             }
         }
@@ -119,10 +125,14 @@ public class BitfieldBasedStatistics {
     /**
      * Get peer's bitfield, if present.
      *
-     * @since 1.0
+     * @since 1.7
      */
-    public Optional<Bitfield> getPeerBitfield(Peer peer) {
-        return Optional.ofNullable(peerBitfields.get(peer));
+    public Optional<BitSet> getPieces(Peer peer) {
+        return Optional.ofNullable(peerPiecesMap.get(peer)).flatMap(pieces -> {
+            synchronized (accumulator) {
+                return Optional.of(copyOf(pieces));
+            }
+        });
     }
 
     public int getPiecesTotal() {
@@ -140,14 +150,21 @@ public class BitfieldBasedStatistics {
 
 
     public int next(PieceOrder pieceOrder, BitSet mask, Peer peer) {
-        final Bitfield bitfield = peerBitfields.get(peer);
-        if (bitfield == null) {
+        if (!peerPiecesMap.containsKey(peer)) {
             return -1;
         }
-        final BitSet mixedMask = bitfield.getBitSet();
-        mixedMask.and(mask);
         synchronized (accumulator) {
+            final BitSet pieces = peerPiecesMap.get(peer);
+            if (pieces == null) {
+                return -1;
+            }
+            final BitSet mixedMask = copyOf(pieces);
+            mixedMask.and(mask);
             return pieceOrder.next(accumulator, mixedMask);
         }
+    }
+
+    private BitSet copyOf(BitSet bitSet) {
+        return (BitSet) bitSet.clone();
     }
 }

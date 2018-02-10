@@ -16,9 +16,10 @@
 
 package bt.event;
 
-import bt.data.Bitfield;
 import bt.metainfo.TorrentId;
 import bt.net.Peer;
+
+import java.util.BitSet;
 
 /**
  * Indicates, that local information about some peer's data has been updated.
@@ -29,13 +30,16 @@ public class PeerBitfieldUpdatedEvent extends BaseEvent implements TorrentEvent 
 
     private final TorrentId torrentId;
     private final Peer peer;
-    private final Bitfield bitfield;
+    private final BitSet pieces;
+    private final int piecesTotal;
 
-    protected PeerBitfieldUpdatedEvent(long id, long timestamp, TorrentId torrentId, Peer peer, Bitfield bitfield) {
+    protected PeerBitfieldUpdatedEvent(
+            long id, long timestamp, TorrentId torrentId, Peer peer, BitSet pieces, int piecesTotal) {
         super(id, timestamp);
         this.torrentId = torrentId;
         this.peer = peer;
-        this.bitfield = bitfield;
+        this.pieces = pieces;
+        this.piecesTotal = piecesTotal;
     }
 
     @Override
@@ -53,8 +57,15 @@ public class PeerBitfieldUpdatedEvent extends BaseEvent implements TorrentEvent 
     /**
      * @since 1.5
      */
-    public Bitfield getBitfield() {
-        return bitfield;
+    public BitSet getPieces() {
+        return pieces;
+    }
+
+    /**
+     * @since 1.7
+     */
+    public int getPiecesTotal() {
+        return piecesTotal;
     }
 
     @Override

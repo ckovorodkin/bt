@@ -25,7 +25,7 @@ import bt.processor.TerminateOnErrorProcessingStage;
 import bt.processor.ProcessingStage;
 import bt.processor.listener.ProcessingEvent;
 import bt.runtime.Config;
-import bt.torrent.BitfieldBasedStatistics;
+import bt.torrent.PiecesStatistics;
 import bt.torrent.DefaultTorrentSessionState;
 import bt.torrent.TorrentDescriptor;
 import bt.torrent.TorrentRegistry;
@@ -74,7 +74,7 @@ public class CreateSessionStage<C extends TorrentContext> extends TerminateOnErr
 
         Supplier<Bitfield> bitfieldSupplier = context::getBitfield;
         Supplier<Assignments> assignmentsSupplier = context::getAssignments;
-        Supplier<BitfieldBasedStatistics> statisticsSupplier = context::getPieceStatistics;
+        Supplier<PiecesStatistics> statisticsSupplier = context::getPieceStatistics;
         TorrentWorker torrentWorker = new TorrentWorker(torrentId, messageDispatcher, connectionSource, peerWorkerFactory,
                 bitfieldSupplier, assignmentsSupplier, statisticsSupplier, eventSource, config);
 

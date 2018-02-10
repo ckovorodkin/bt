@@ -16,9 +16,10 @@
 
 package bt.event;
 
-import bt.data.Bitfield;
 import bt.metainfo.TorrentId;
 import bt.net.Peer;
+
+import java.util.BitSet;
 
 /**
  * Provides API to generate runtime events.
@@ -53,7 +54,7 @@ public interface EventSink {
      *
      * @since 1.5
      */
-    void firePeerBitfieldUpdated(TorrentId torrentId, Peer peer, Bitfield bitfield);
+    void firePeerBitfieldUpdated(TorrentId torrentId, Peer peer, BitSet pieces, int piecesTotal);
 
     /**
      * Generate event, that processing of some torrent has begun.

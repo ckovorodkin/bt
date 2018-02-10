@@ -19,7 +19,7 @@ package bt.torrent.messaging;
 import bt.data.Bitfield;
 import bt.net.Peer;
 import bt.runtime.Config;
-import bt.torrent.BitfieldBasedStatistics;
+import bt.torrent.PiecesStatistics;
 import bt.torrent.order.PieceOrder;
 import bt.torrent.order.RandomPieceOrder;
 import org.slf4j.Logger;
@@ -40,7 +40,7 @@ public class Assignments {
 
     private Bitfield localBitfield;
     private PieceOrder pieceOrder;
-    private BitfieldBasedStatistics pieceStatistics;
+    private PiecesStatistics pieceStatistics;
 
     private BitSet assignedPieces;
     private Map<Peer, Assignment> assignments;
@@ -49,7 +49,7 @@ public class Assignments {
     private final PieceOrder endgamePieceOrder;
 
     public Assignments(
-            Bitfield localBitfield, PieceOrder pieceOrder, BitfieldBasedStatistics pieceStatistics, Config config) {
+            Bitfield localBitfield, PieceOrder pieceOrder, PiecesStatistics pieceStatistics, Config config) {
         this.localBitfield = localBitfield;
         this.pieceOrder = pieceOrder;
         this.pieceStatistics = pieceStatistics;
@@ -173,12 +173,12 @@ public class Assignments {
     }
 
     private boolean hasInterestingPieces(Peer peer, BitSet mask) {
-        Optional<Bitfield> peerBitfieldOptional = pieceStatistics.getPeerBitfield(peer);
-        if (!peerBitfieldOptional.isPresent()) {
+        final Optional<BitSet> piecesOptional = pieceStatistics.getPieces(peer);
+        if (!piecesOptional.isPresent()) {
             return false;
         }
-        BitSet peerBitfield = peerBitfieldOptional.get().getBitSet();
-        peerBitfield.and(mask);
-        return peerBitfield.cardinality() > 0;
+        final BitSet pieces = piecesOptional.get();
+        pieces.and(mask);
+        return pieces.cardinality() > 0;
     }
 }

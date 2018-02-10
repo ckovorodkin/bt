@@ -16,7 +16,6 @@
 
 package bt.processor.magnet;
 
-import bt.data.Bitfield;
 import bt.event.EventSink;
 import bt.metainfo.TorrentId;
 import bt.net.Peer;
@@ -24,12 +23,13 @@ import bt.processor.ProcessingStage;
 import bt.processor.listener.ProcessingEvent;
 import bt.processor.torrent.InitializeTorrentProcessingStage;
 import bt.runtime.Config;
-import bt.torrent.BitfieldBasedStatistics;
+import bt.torrent.PiecesStatistics;
 import bt.torrent.TorrentRegistry;
 import bt.torrent.data.IDataWorkerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashSet;
 
@@ -53,17 +53,18 @@ public class InitializeMagnetTorrentProcessingStage extends InitializeTorrentPro
 
         TorrentId torrentId = context.getTorrentId().get();
 
-        BitfieldBasedStatistics statistics = context.getPieceStatistics();
+        PiecesStatistics statistics = context.getPieceStatistics();
         // process bitfields and haves that we received while fetching metadata
         Collection<Peer> peersUpdated = new HashSet<>();
         context.getBitfieldConsumer().getBitfields().forEach((peer, bitfieldBytes) -> {
-            if (statistics.getPeerBitfield(peer).isPresent()) {
+            if (statistics.getPieces(peer).isPresent()) {
+                // how about concurrent Have?
                 // we should not have received peer's bitfields twice, but whatever.. ignore and continue
                 return;
             }
             try {
                 peersUpdated.add(peer);
-                statistics.addBitfield(peer, new Bitfield(bitfieldBytes, statistics.getPiecesTotal()));
+                statistics.addPieces(peer, BitSet.valueOf(bitfieldBytes));
             } catch (Exception e) {
                 LOGGER.warn("Error happened when processing peer's bitfield", e);
             }
@@ -78,8 +79,12 @@ public class InitializeMagnetTorrentProcessingStage extends InitializeTorrentPro
         });
         peersUpdated.forEach(peer -> {
             // racing against possible disconnection of peers, so must check if bitfield is still present
-            statistics.getPeerBitfield(peer).ifPresent(
-                    bitfield -> eventSink.firePeerBitfieldUpdated(torrentId, peer, bitfield));
+            statistics
+                    .getPieces(peer)
+                    .ifPresent(bitfield -> {
+                        final int piecesTotal = statistics.getPiecesTotal();
+                        eventSink.firePeerBitfieldUpdated(torrentId, peer, bitfield, piecesTotal);
+                    });
         });
         // unregistering only now, so that there were no gaps in bitifield receiving
         context.getRouter().unregisterMessagingAgent(context.getBitfieldConsumer());

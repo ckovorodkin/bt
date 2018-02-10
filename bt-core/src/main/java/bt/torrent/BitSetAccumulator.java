@@ -28,6 +28,15 @@ public class BitSetAccumulator {
         return length;
     }
 
+    public boolean isEmpty() {
+        return bitSets.isEmpty();
+    }
+
+    public void clear() {
+        bitSets.clear();
+        firstIncompleteIndex = 0;
+    }
+
     public double getRatio(BitSet addition) {
         if (addition.length() > length) {
             throw new IllegalArgumentException();

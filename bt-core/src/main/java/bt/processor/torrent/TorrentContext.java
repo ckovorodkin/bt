@@ -21,7 +21,7 @@ import bt.data.Storage;
 import bt.metainfo.Torrent;
 import bt.metainfo.TorrentId;
 import bt.processor.ProcessingContext;
-import bt.torrent.BitfieldBasedStatistics;
+import bt.torrent.PiecesStatistics;
 import bt.torrent.TorrentSessionState;
 import bt.torrent.TrackerAnnouncer;
 import bt.torrent.messaging.Assignments;
@@ -49,7 +49,7 @@ public class TorrentContext implements ProcessingContext {
     private volatile MessageRouter router;
     private volatile Bitfield bitfield;
     private volatile Assignments assignments;
-    private volatile BitfieldBasedStatistics pieceStatistics;
+    private volatile PiecesStatistics pieceStatistics;
     private volatile TrackerAnnouncer announcer;
 
     public TorrentContext(PieceOrder pieceOrder,
@@ -125,11 +125,11 @@ public class TorrentContext implements ProcessingContext {
         this.assignments = assignments;
     }
 
-    public BitfieldBasedStatistics getPieceStatistics() {
+    public PiecesStatistics getPieceStatistics() {
         return pieceStatistics;
     }
 
-    public void setPieceStatistics(BitfieldBasedStatistics pieceStatistics) {
+    public void setPieceStatistics(PiecesStatistics pieceStatistics) {
         this.pieceStatistics = pieceStatistics;
     }
 

@@ -20,8 +20,10 @@ import bt.event.EventSink;
 import bt.net.Peer;
 import bt.protocol.Bitfield;
 import bt.protocol.Have;
-import bt.torrent.BitfieldBasedStatistics;
+import bt.torrent.PiecesStatistics;
 import bt.torrent.annotation.Consumes;
+
+import java.util.BitSet;
 
 /**
  * Consumes peer bitfield.
@@ -33,13 +35,10 @@ import bt.torrent.annotation.Consumes;
  * @since 1.0
  */
 public class BitfieldConsumer {
-
-    private bt.data.Bitfield bitfield;
-    private BitfieldBasedStatistics pieceStatistics;
+    private PiecesStatistics pieceStatistics;
     private EventSink eventSink;
 
-    public BitfieldConsumer(bt.data.Bitfield bitfield, BitfieldBasedStatistics pieceStatistics, EventSink eventSink) {
-        this.bitfield = bitfield;
+    public BitfieldConsumer(PiecesStatistics pieceStatistics, EventSink eventSink) {
         this.pieceStatistics = pieceStatistics;
         this.eventSink = eventSink;
     }
@@ -47,16 +46,18 @@ public class BitfieldConsumer {
     @Consumes
     public void consume(Bitfield bitfieldMessage, MessageContext context) {
         Peer peer = context.getPeer();
-        bt.data.Bitfield peerBitfield = new bt.data.Bitfield(bitfieldMessage.getBitfield(), bitfield.getPiecesTotal());
-        pieceStatistics.addBitfield(peer, peerBitfield);
-        eventSink.firePeerBitfieldUpdated(context.getTorrentId().get(), peer, peerBitfield);
+        final BitSet pieces = BitSet.valueOf(bitfieldMessage.getBitfield());
+        pieceStatistics.addPieces(peer, pieces);
+        eventSink.firePeerBitfieldUpdated(context.getTorrentId().get(), peer, pieces, pieceStatistics.getPiecesTotal());
     }
 
     @Consumes
     public void consume(Have have, MessageContext context) {
         Peer peer = context.getPeer();
         pieceStatistics.addPiece(peer, have.getPieceIndex());
-        pieceStatistics.getPeerBitfield(peer).ifPresent(
-                bitfield -> eventSink.firePeerBitfieldUpdated(context.getTorrentId().get(), peer, bitfield));
+        pieceStatistics.getPieces(peer).ifPresent(pieces -> {
+            final int piecesTotal = pieceStatistics.getPiecesTotal();
+            eventSink.firePeerBitfieldUpdated(context.getTorrentId().get(), peer, pieces, piecesTotal);
+        });
     }
 }

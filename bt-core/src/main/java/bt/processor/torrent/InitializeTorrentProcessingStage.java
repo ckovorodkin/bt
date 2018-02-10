@@ -23,7 +23,7 @@ import bt.processor.ProcessingStage;
 import bt.processor.TerminateOnErrorProcessingStage;
 import bt.processor.listener.ProcessingEvent;
 import bt.runtime.Config;
-import bt.torrent.BitfieldBasedStatistics;
+import bt.torrent.PiecesStatistics;
 import bt.torrent.TorrentDescriptor;
 import bt.torrent.TorrentRegistry;
 import bt.torrent.data.DataWorker;
@@ -62,14 +62,14 @@ public class InitializeTorrentProcessingStage<C extends TorrentContext> extends 
         TorrentDescriptor descriptor = torrentRegistry.register(torrent, context.getStorage());
 
         Bitfield bitfield = descriptor.getDataDescriptor().getBitfield();
-        BitfieldBasedStatistics pieceStatistics = createPieceStatistics(bitfield);
+        PiecesStatistics pieceStatistics = createPieceStatistics(bitfield);
         final PieceOrder pieceOrder = context.getPieceOrder();
 
         DataWorker dataWorker = createDataWorker(descriptor);
         Assignments assignments = new Assignments(bitfield, pieceOrder, pieceStatistics, config);
 
         context.getRouter().registerMessagingAgent(GenericConsumer.consumer());
-        context.getRouter().registerMessagingAgent(new BitfieldConsumer(bitfield, pieceStatistics, eventSink));
+        context.getRouter().registerMessagingAgent(new BitfieldConsumer(pieceStatistics, eventSink));
         context.getRouter().registerMessagingAgent(new PieceConsumer(bitfield, dataWorker));
         context.getRouter().registerMessagingAgent(new PeerRequestConsumer(dataWorker));
         context.getRouter().registerMessagingAgent(new RequestProducer(descriptor.getDataDescriptor()));
@@ -80,8 +80,8 @@ public class InitializeTorrentProcessingStage<C extends TorrentContext> extends 
         context.setPieceStatistics(pieceStatistics);
     }
 
-    private BitfieldBasedStatistics createPieceStatistics(Bitfield bitfield) {
-        return new BitfieldBasedStatistics(bitfield);
+    private PiecesStatistics createPieceStatistics(Bitfield bitfield) {
+        return new PiecesStatistics(bitfield);
     }
 
     private DataWorker createDataWorker(TorrentDescriptor descriptor) {
