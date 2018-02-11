@@ -60,40 +60,15 @@ public class Bitfield {
 
     /**
      * Creates empty bitfield.
-     * Useful when peer does not communicate its' bitfield (e.g. when he has no data).
      *
      * @param piecesTotal Total number of pieces in torrent.
      * @since 1.0
      */
     public Bitfield(int piecesTotal) {
-        this(new byte[getBitmaskLength(piecesTotal)], piecesTotal);
-    }
-
-    /**
-     * Creates bitfield based on a bitmask.
-     * Used for creating peers' bitfields.
-     *
-     * @param value Bitmask that describes status of all pieces.
-     *              If position i is set to 1, then piece with index i is complete and verified.
-     * @param piecesTotal Total number of pieces in torrent.
-     * @since 1.0
-     */
-    public Bitfield(byte[] value, int piecesTotal) {
-
-        int expectedBitmaskLength = getBitmaskLength(piecesTotal);
-        if (value.length != expectedBitmaskLength) {
-            throw new IllegalArgumentException("Invalid bitfield: total (" + piecesTotal +
-                    "), bitmask length (" + value.length + "). Expected bitmask length: " + expectedBitmaskLength);
-        }
-
-        this.pieces = BitSet.valueOf(value);
+        this.pieces = new BitSet(piecesTotal);
         this.piecesTotal = piecesTotal;
         this.piecesComplete = pieces.cardinality();
         this.lock = new ReentrantLock();
-    }
-
-    private static int getBitmaskLength(int piecesTotal) {
-        return (piecesTotal + 7) / 8;
     }
 
     /**
@@ -106,7 +81,7 @@ public class Bitfield {
         lock.lock();
         try {
             final byte[] bytes = pieces.toByteArray();
-            final int length = getBitmaskLength(piecesTotal);
+            final int length = (piecesTotal + 7) / 8;
             if (bytes.length == length) {
                 return bytes;
             }
