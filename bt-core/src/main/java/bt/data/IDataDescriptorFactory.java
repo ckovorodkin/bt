@@ -16,6 +16,7 @@
 
 package bt.data;
 
+import bt.data.storage.Storage;
 import bt.metainfo.Torrent;
 
 /**

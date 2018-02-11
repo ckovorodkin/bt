@@ -16,6 +16,8 @@
 
 package bt.data;
 
+import bt.data.chunk.ChunkVerifier;
+import bt.data.storage.Storage;
 import bt.metainfo.Torrent;
 
 /**

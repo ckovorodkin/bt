@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package bt.data;
+package bt.data.chunk;
 
 import bt.BtException;
+import bt.data.Bitfield;
 import bt.data.digest.Digester;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

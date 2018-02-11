@@ -14,33 +14,34 @@
  * limitations under the License.
  */
 
-package bt.data;
-
-import java.util.List;
+package bt.data.range;
 
 /**
- * Implements data verification strategy.
+ * Represents a range of binary data, abstracting the mapping of data onto the storage layer.
+ * Real data may span over several storage units or reside completely inside a single storage unit.
  *
  * @since 1.2
  */
-public interface ChunkVerifier {
+public interface DataRange extends Range<DataRange> {
 
     /**
-     * Conducts verification of the provided list of chunks and updates bitfield with the results.
+     * Traverse the storage units in this data range.
      *
-     * @param chunks List of chunks
-     * @param bitfield Bitfield
-     * @return true if all chunks have been verified successfully (meaning that all data is present and correct)
      * @since 1.2
      */
-    boolean verify(List<ChunkDescriptor> chunks, Bitfield bitfield);
+    void visitUnits(DataRangeVisitor visitor);
 
     /**
-     * Conducts verification of the provided chunk.
+     * {@inheritDoc}
      *
-     * @param chunk Chunk
-     * @return true if the chunk has been verified successfully (meaning that all data is present and correct)
-     * @since 1.2
+     * @since 1.3
      */
-    boolean verify(ChunkDescriptor chunk);
+    DataRange getSubrange(long offset, long length);
+
+    /**
+     * {@inheritDoc}
+     *
+     * @since 1.3
+     */
+    DataRange getSubrange(long offset);
 }

@@ -14,11 +14,15 @@
  * limitations under the License.
  */
 
-package bt.data;
+package bt.data.chunk;
 
 import bt.TestUtil;
+import bt.data.DataDescriptor;
+import bt.data.DataDescriptorFactory;
+import bt.data.IDataDescriptorFactory;
 import bt.data.digest.Digester;
 import bt.data.digest.SHA1Digester;
+import bt.data.storage.TestFileSystemStorage;
 import bt.metainfo.Torrent;
 import bt.service.CryptoUtil;
 import org.junit.Before;
@@ -32,7 +36,6 @@ import java.util.List;
 import static bt.data.ChunkDescriptorTestUtil.assertFileHasContents;
 import static bt.data.ChunkDescriptorTestUtil.mockTorrent;
 import static bt.data.ChunkDescriptorTestUtil.mockTorrentFile;
-import static bt.TestUtil.sequence;
 import static bt.data.ChunkDescriptorTestUtil.writeBytesToFile;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;

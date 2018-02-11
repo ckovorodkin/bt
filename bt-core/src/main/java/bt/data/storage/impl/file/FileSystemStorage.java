@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package bt.data.file;
+package bt.data.storage.impl.file;
 
-import bt.data.StorageUnit;
-import bt.data.Storage;
+import bt.data.storage.StorageUnit;
+import bt.data.storage.Storage;
 import bt.metainfo.Torrent;
 import bt.metainfo.TorrentFile;
 

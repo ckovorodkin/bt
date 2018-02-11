@@ -16,8 +16,8 @@
 
 package bt.torrent;
 
-import bt.data.ChunkDescriptor;
-import bt.data.DataRange;
+import bt.data.chunk.ChunkDescriptor;
+import bt.data.range.DataRange;
 import org.junit.BeforeClass;
 
 import java.util.Arrays;

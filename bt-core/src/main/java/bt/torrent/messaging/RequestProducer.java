@@ -17,7 +17,7 @@
 package bt.torrent.messaging;
 
 import bt.BtException;
-import bt.data.ChunkDescriptor;
+import bt.data.chunk.ChunkDescriptor;
 import bt.data.DataDescriptor;
 import bt.net.Peer;
 import bt.protocol.Cancel;

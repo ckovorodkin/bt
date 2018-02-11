@@ -17,7 +17,7 @@
 package bt.processor.torrent;
 
 import bt.data.Bitfield;
-import bt.data.Storage;
+import bt.data.storage.Storage;
 import bt.metainfo.Torrent;
 import bt.metainfo.TorrentId;
 import bt.processor.ProcessingContext;

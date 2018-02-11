@@ -16,8 +16,8 @@
 
 package bt.torrent.data;
 
-import bt.data.ChunkDescriptor;
-import bt.data.ChunkVerifier;
+import bt.data.chunk.ChunkDescriptor;
+import bt.data.chunk.ChunkVerifier;
 import bt.data.DataDescriptor;
 import bt.net.Peer;
 import bt.service.IRuntimeLifecycleBinder;

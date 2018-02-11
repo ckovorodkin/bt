@@ -17,8 +17,8 @@
 package peertracker;
 
 import bt.Bt;
-import bt.data.Storage;
-import bt.data.file.FileSystemStorage;
+import bt.data.storage.Storage;
+import bt.data.storage.impl.file.FileSystemStorage;
 import bt.dht.DHTConfig;
 import bt.dht.DHTModule;
 import bt.magnet.MagnetUri;

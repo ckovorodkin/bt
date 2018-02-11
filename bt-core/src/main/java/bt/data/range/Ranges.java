@@ -16,8 +16,7 @@
 
 package bt.data.range;
 
-import bt.data.BlockSet;
-import bt.data.DataRange;
+import bt.data.blockset.BlockSet;
 
 import java.util.function.Function;
 

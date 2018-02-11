@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package bt.data.file;
+package bt.data.storage.impl.file;
 
 import java.io.IOException;
 import java.nio.file.FileStore;

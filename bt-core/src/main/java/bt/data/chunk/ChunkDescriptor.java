@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-package bt.data;
+package bt.data.chunk;
 
+import bt.data.blockset.BlockSet;
+import bt.data.range.DataRange;
 import bt.metainfo.Torrent;
 
 /**

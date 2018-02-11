@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package bt.data.file;
+package bt.data.storage.impl.file;
 
 import java.nio.file.FileSystem;
 import java.util.List;

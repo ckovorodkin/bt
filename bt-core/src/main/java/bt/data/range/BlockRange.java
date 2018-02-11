@@ -16,7 +16,8 @@
 
 package bt.data.range;
 
-import bt.data.BlockSet;
+import bt.data.blockset.BlockSet;
+import bt.data.blockset.MutableBlockSet;
 
 /**
  * @since 1.3

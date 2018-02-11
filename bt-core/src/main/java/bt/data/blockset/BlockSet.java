@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package bt.data;
+package bt.data.blockset;
 
 /**
  * @since 1.2

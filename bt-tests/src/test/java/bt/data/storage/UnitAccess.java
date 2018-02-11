@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package bt.data;
+package bt.data.storage;
 
 import java.util.Objects;
 
-class UnitAccess {
+public class UnitAccess {
 
     private StorageUnit unit;
     private long off;

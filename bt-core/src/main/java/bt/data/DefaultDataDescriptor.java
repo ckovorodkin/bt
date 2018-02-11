@@ -17,8 +17,16 @@
 package bt.data;
 
 import bt.BtException;
+import bt.data.blockset.BlockSet;
+import bt.data.chunk.ChunkDescriptor;
+import bt.data.chunk.ChunkVerifier;
+import bt.data.chunk.DefaultChunkDescriptor;
 import bt.data.range.BlockRange;
+import bt.data.range.DataRange;
 import bt.data.range.Ranges;
+import bt.data.range.ReadWriteDataRange;
+import bt.data.storage.Storage;
+import bt.data.storage.StorageUnit;
 import bt.metainfo.Torrent;
 import bt.metainfo.TorrentFile;
 import org.slf4j.Logger;

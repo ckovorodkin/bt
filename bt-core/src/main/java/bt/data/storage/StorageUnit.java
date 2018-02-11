@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package bt.data;
+package bt.data.storage;
 
 import java.io.Closeable;
 import java.nio.Buffer;

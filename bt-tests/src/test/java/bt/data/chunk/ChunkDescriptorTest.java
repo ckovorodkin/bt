@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package bt.data;
+package bt.data.chunk;
 
 import org.junit.Test;
 

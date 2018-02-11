@@ -16,7 +16,7 @@
 
 package bt.torrent.data;
 
-import bt.data.ChunkVerifier;
+import bt.data.chunk.ChunkVerifier;
 import bt.data.DataDescriptor;
 import bt.service.IRuntimeLifecycleBinder;
 

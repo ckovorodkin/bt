@@ -16,8 +16,8 @@
 
 package yourip.mock;
 
-import bt.data.Storage;
-import bt.data.StorageUnit;
+import bt.data.storage.Storage;
+import bt.data.storage.StorageUnit;
 import bt.metainfo.Torrent;
 import bt.metainfo.TorrentFile;
 

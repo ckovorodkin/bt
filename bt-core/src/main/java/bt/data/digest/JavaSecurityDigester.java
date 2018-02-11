@@ -17,7 +17,7 @@
 package bt.data.digest;
 
 import bt.BtException;
-import bt.data.DataRange;
+import bt.data.range.DataRange;
 import bt.data.range.Range;
 
 import java.security.MessageDigest;

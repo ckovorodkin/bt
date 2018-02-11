@@ -16,7 +16,7 @@
 
 package bt.data.digest;
 
-import bt.data.DataRange;
+import bt.data.range.DataRange;
 import bt.data.range.Range;
 
 /**

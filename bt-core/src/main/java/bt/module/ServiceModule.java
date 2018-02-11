@@ -16,9 +16,9 @@
 
 package bt.module;
 
-import bt.data.ChunkVerifier;
+import bt.data.chunk.ChunkVerifier;
 import bt.data.DataDescriptorFactory;
-import bt.data.DefaultChunkVerifier;
+import bt.data.chunk.DefaultChunkVerifier;
 import bt.data.IDataDescriptorFactory;
 import bt.data.digest.Digester;
 import bt.data.digest.JavaSecurityDigester;

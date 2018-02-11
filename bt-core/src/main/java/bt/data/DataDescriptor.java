@@ -16,6 +16,8 @@
 
 package bt.data;
 
+import bt.data.chunk.ChunkDescriptor;
+
 import java.io.Closeable;
 import java.util.List;
 

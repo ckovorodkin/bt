@@ -14,36 +14,25 @@
  * limitations under the License.
  */
 
-package bt.data;
+package bt.data.storage;
 
-import bt.data.range.Range;
+import bt.metainfo.Torrent;
+import bt.metainfo.TorrentFile;
 
 /**
- * Represents a range of binary data, abstracting the mapping of data onto the storage layer.
- * Real data may span over several storage units or reside completely inside a single storage unit.
+ * Data back-end. Provides storage for torrent files.
  *
- * @since 1.2
+ * @since 1.0
  */
-public interface DataRange extends Range<DataRange> {
+public interface Storage {
 
     /**
-     * Traverse the storage units in this data range.
+     * Get a storage unit for a particular torrent file.
      *
-     * @since 1.2
+     * @param torrent Torrent metainfo
+     * @param torrentFile Torrent file metainfo
+     * @return Storage unit for a single torrent file
+     * @since 1.0
      */
-    void visitUnits(DataRangeVisitor visitor);
-
-    /**
-     * {@inheritDoc}
-     *
-     * @since 1.3
-     */
-    DataRange getSubrange(long offset, long length);
-
-    /**
-     * {@inheritDoc}
-     *
-     * @since 1.3
-     */
-    DataRange getSubrange(long offset);
+    StorageUnit getUnit(Torrent torrent, TorrentFile torrentFile);
 }

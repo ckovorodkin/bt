@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-package bt.data;
+package bt.data.range;
+
+import bt.data.storage.StorageUnit;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -24,7 +26,7 @@ import java.util.List;
 /**
  * @since 1.2
  */
-class ReadWriteDataRange implements DataRange {
+public class ReadWriteDataRange implements DataRange {
 
     private final List<StorageUnit> units;
     private final int firstUnit;

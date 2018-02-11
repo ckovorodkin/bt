@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-package bt.data;
+package bt.data.range;
+
+import bt.data.storage.StorageUnit;
 
 /**
  * Traverses a data range on a per-unit basis.

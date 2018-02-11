@@ -16,7 +16,7 @@
 
 package bt.torrent.messaging;
 
-import bt.data.BlockSet;
+import bt.data.blockset.BlockSet;
 import bt.data.digest.SHA1Digester;
 import bt.data.range.BlockRange;
 import bt.data.range.ByteRange;

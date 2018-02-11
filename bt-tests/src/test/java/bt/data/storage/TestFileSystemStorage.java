@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package bt.data;
+package bt.data.storage;
 
-import bt.data.file.FileSystemStorage;
+import bt.data.storage.impl.file.FileSystemStorage;
 import bt.metainfo.Torrent;
 import bt.metainfo.TorrentFile;
 import org.junit.rules.ExternalResource;
@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 // TODO: replace this with in-memory storage
-class TestFileSystemStorage extends ExternalResource implements Storage {
+public class TestFileSystemStorage extends ExternalResource implements Storage {
 
     private static final String ROOT_PATH = "target/rt";
 

@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package bt.data.file;
+package bt.data.storage.impl.file;
 
 import bt.BtException;
-import bt.data.StorageUnit;
+import bt.data.storage.StorageUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

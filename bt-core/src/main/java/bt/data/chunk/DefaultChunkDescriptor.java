@@ -14,12 +14,15 @@
  * limitations under the License.
  */
 
-package bt.data;
+package bt.data.chunk;
+
+import bt.data.blockset.BlockSet;
+import bt.data.range.DataRange;
 
 /**
  * @since 1.0
  */
-class DefaultChunkDescriptor implements ChunkDescriptor {
+public class DefaultChunkDescriptor implements ChunkDescriptor {
 
     private final DataRange data;
     private final BlockSet blockSet;

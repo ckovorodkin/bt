@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 
-package bt.data.range;
-
-import bt.data.BlockSet;
+package bt.data.blockset;
 
 import java.util.BitSet;
 
-class MutableBlockSet implements BlockSet {
+public class MutableBlockSet implements BlockSet {
 
     private final long length;
     private final long blockSize;
@@ -33,7 +31,7 @@ class MutableBlockSet implements BlockSet {
      */
     private final BitSet bitmask;
 
-    MutableBlockSet(long length, long blockSize) {
+    public MutableBlockSet(long length, long blockSize) {
         // intentionally allow length to be greater than block size
         if (length < 0 || blockSize < 0) {
             throw new IllegalArgumentException("Illegal arguments: length (" + length + "), block size (" + blockSize + ")");
@@ -110,7 +108,7 @@ class MutableBlockSet implements BlockSet {
      * represented in it (i.e. 2 trailing bytes are trimmed). In such case only the first block will be
      * considered saved (i.e. the corresponding index in the bitmask will be set to 1).
      */
-    protected void markAvailable(long offset, long length) {
+    public void markAvailable(long offset, long length) {
         // update bitmask with the info about the new blocks;
         // if only a part of some block is written,
         // then don't count it

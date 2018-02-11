@@ -16,7 +16,7 @@
 
 package bt.data.range;
 
-import bt.data.BlockSet;
+import bt.data.blockset.BlockSet;
 
 import java.util.concurrent.locks.ReentrantLock;
 

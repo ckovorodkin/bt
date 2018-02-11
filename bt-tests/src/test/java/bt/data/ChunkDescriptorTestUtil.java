@@ -16,8 +16,13 @@
 
 package bt.data;
 
+import bt.data.chunk.ChunkDescriptor;
+import bt.data.chunk.DefaultChunkDescriptor;
 import bt.data.range.BlockRange;
+import bt.data.range.DataRange;
 import bt.data.range.Ranges;
+import bt.data.range.ReadWriteDataRange;
+import bt.data.storage.StorageUnit;
 import bt.metainfo.Torrent;
 import bt.metainfo.TorrentFile;
 import bt.tracker.AnnounceKey;

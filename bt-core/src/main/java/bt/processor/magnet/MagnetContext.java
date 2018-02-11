@@ -16,7 +16,7 @@
 
 package bt.processor.magnet;
 
-import bt.data.Storage;
+import bt.data.storage.Storage;
 import bt.magnet.MagnetUri;
 import bt.metainfo.TorrentId;
 import bt.processor.torrent.TorrentContext;

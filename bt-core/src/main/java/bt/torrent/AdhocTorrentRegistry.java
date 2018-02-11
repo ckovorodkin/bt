@@ -17,7 +17,7 @@
 package bt.torrent;
 
 import bt.data.IDataDescriptorFactory;
-import bt.data.Storage;
+import bt.data.storage.Storage;
 import bt.event.EventSink;
 import bt.metainfo.Torrent;
 import bt.metainfo.TorrentId;

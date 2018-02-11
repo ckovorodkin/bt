@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package bt.data;
+package bt.data.range;
 
+import bt.data.storage.StorageUnit;
 import org.junit.Test;
 
 import java.util.List;
