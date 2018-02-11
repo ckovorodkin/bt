@@ -80,7 +80,7 @@ public class Config {
         this.shutdownHookTimeout = Duration.ofSeconds(30);
         this.numOfHashingThreads = 1; // do not parallelize by default
         this.maxConcurrentlyActivePeerConnectionsPerTorrent = 20;
-        this.maxPieceReceivingTime = Duration.ofSeconds(30);
+        this.maxPieceReceivingTime = Duration.ofSeconds(300);
         this.maxMessageProcessingInterval = Duration.ofMillis(100);
         this.unreachablePeerBanDuration = Duration.ofMinutes(30);
         this.maxPendingConnectionRequests = 50;

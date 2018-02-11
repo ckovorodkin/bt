@@ -76,6 +76,10 @@ public class Assignments {
         assignedPieces.clear(assignment.getPiece());
     }
 
+    public int getPiecesRemaining() {
+        return localBitfield.getPiecesRemaining();
+    }
+
     public int count() {
         return assignments.size();
     }

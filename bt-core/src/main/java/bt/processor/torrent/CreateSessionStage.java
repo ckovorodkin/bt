@@ -16,17 +16,16 @@
 
 package bt.processor.torrent;
 
-import bt.data.Bitfield;
 import bt.event.EventSource;
 import bt.metainfo.TorrentId;
 import bt.net.IConnectionSource;
 import bt.net.IMessageDispatcher;
-import bt.processor.TerminateOnErrorProcessingStage;
 import bt.processor.ProcessingStage;
+import bt.processor.TerminateOnErrorProcessingStage;
 import bt.processor.listener.ProcessingEvent;
 import bt.runtime.Config;
-import bt.torrent.PiecesStatistics;
 import bt.torrent.DefaultTorrentSessionState;
+import bt.torrent.PiecesStatistics;
 import bt.torrent.TorrentDescriptor;
 import bt.torrent.TorrentRegistry;
 import bt.torrent.messaging.Assignments;
@@ -72,11 +71,10 @@ public class CreateSessionStage<C extends TorrentContext> extends TerminateOnErr
         MessageRouter router = new DefaultMessageRouter(messagingAgents);
         IPeerWorkerFactory peerWorkerFactory = new PeerWorkerFactory(router);
 
-        Supplier<Bitfield> bitfieldSupplier = context::getBitfield;
         Supplier<Assignments> assignmentsSupplier = context::getAssignments;
         Supplier<PiecesStatistics> statisticsSupplier = context::getPieceStatistics;
         TorrentWorker torrentWorker = new TorrentWorker(torrentId, messageDispatcher, connectionSource, peerWorkerFactory,
-                bitfieldSupplier, assignmentsSupplier, statisticsSupplier, eventSource, config);
+                assignmentsSupplier, statisticsSupplier, eventSource, config);
 
         context.setState(new DefaultTorrentSessionState(descriptor, torrentWorker));
         context.setRouter(router);

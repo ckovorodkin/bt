@@ -226,7 +226,7 @@ public class CliClient  {
                 if (!options.shouldSeedAfterDownloaded() && state.getPiecesRemaining() == 0) {
                     runtime.shutdown();
                 }
-            }, 1000);
+            }, 10000);
         } catch (Throwable e) {
             // in case the start request to the tracker fails
             printer.ifPresent(SessionStatePrinter::shutdown);
