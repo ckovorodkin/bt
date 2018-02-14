@@ -22,7 +22,6 @@ import bt.metainfo.TorrentId;
 import bt.net.IConnectionSource;
 import bt.net.IMessageDispatcher;
 import bt.net.Peer;
-import bt.protocol.Have;
 import bt.protocol.Interested;
 import bt.protocol.Message;
 import bt.protocol.NotInterested;
@@ -39,7 +38,6 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Supplier;
@@ -62,7 +60,7 @@ public class TorrentWorker {
 
     private final IConnectionSource connectionSource;
     private IPeerWorkerFactory peerWorkerFactory;
-    private ConcurrentMap<Peer, PieceAnnouncingPeerWorker> peerMap;
+    private ConcurrentMap<Peer, PeerWorker> peerMap;
     private final int MAX_CONCURRENT_ACTIVE_CONNECTIONS;
     private final int MAX_TOTAL_CONNECTIONS;
     private Map<Peer, Long> timeoutedPeers;
@@ -142,8 +140,8 @@ public class TorrentWorker {
      * @since 1.0
      */
     private void addPeer(Peer peer) {
-        PieceAnnouncingPeerWorker worker = createPeerWorker(peer);
-        PieceAnnouncingPeerWorker existing = peerMap.putIfAbsent(peer, worker);
+        final PeerWorker worker = createPeerWorker(peer);
+        final PeerWorker existing = peerMap.putIfAbsent(peer, worker);
         if (existing == null) {
             dispatcher.addMessageConsumer(peer, message -> consume(peer, message));
             dispatcher.addMessageSupplier(peer, () -> produce(peer));
@@ -160,9 +158,9 @@ public class TorrentWorker {
     private Message produce(Peer peer) {
         Message message = null;
 
-        Optional<PieceAnnouncingPeerWorker> workerOptional = getWorker(peer);
+        final Optional<PeerWorker> workerOptional = getWorker(peer);
         if (workerOptional.isPresent()) {
-            PieceAnnouncingPeerWorker worker = workerOptional.get();
+            final PeerWorker worker = workerOptional.get();
             Bitfield bitfield = getBitfield();
             Assignments assignments = getAssignments();
 
@@ -183,7 +181,7 @@ public class TorrentWorker {
         return message;
     }
 
-    private Optional<PieceAnnouncingPeerWorker> getWorker(Peer peer) {
+    private Optional<PeerWorker> getWorker(Peer peer) {
         return Optional.ofNullable(peerMap.get(peer));
     }
 
@@ -333,7 +331,8 @@ public class TorrentWorker {
     }
 
     private PieceAnnouncingPeerWorker createPeerWorker(Peer peer) {
-        return new PieceAnnouncingPeerWorker(peerWorkerFactory.createPeerWorker(torrentId, peer));
+        final PeerWorker peerWorker = peerWorkerFactory.createPeerWorker(torrentId, peer);
+        return new PieceAnnouncingPeerWorker(peerWorker, () -> peerMap.values());
     }
 
     /**
@@ -369,50 +368,6 @@ public class TorrentWorker {
     public ConnectionState getConnectionState(Peer peer) {
         PeerWorker worker = peerMap.get(peer);
         return (worker == null) ? null : worker.getConnectionState();
-    }
-
-    private class PieceAnnouncingPeerWorker implements PeerWorker {
-
-        private final PeerWorker delegate;
-        private final Queue<Have> pieceAnnouncements;
-
-        PieceAnnouncingPeerWorker(PeerWorker delegate) {
-            this.delegate = delegate;
-            this.pieceAnnouncements = new ConcurrentLinkedQueue<>();
-        }
-
-        @Override
-        public ConnectionState getConnectionState() {
-            return delegate.getConnectionState();
-        }
-
-        @Override
-        public void accept(Message message) {
-            delegate.accept(message);
-        }
-
-        @Override
-        public Message get() {
-            Message message = pieceAnnouncements.poll();;
-            if (message != null) {
-                return message;
-            }
-
-            message = delegate.get();
-            if (message != null && Have.class.equals(message.getClass())) {
-                Have have = (Have) message;
-                peerMap.values().forEach(worker -> {
-                    if (this != worker) {
-                        worker.getPieceAnnouncements().add(have);
-                    }
-                });
-            }
-            return message;
-        }
-
-        Queue<Have> getPieceAnnouncements() {
-            return pieceAnnouncements;
-        }
     }
 
     private synchronized void onPeerDiscovered(Peer peer) {
