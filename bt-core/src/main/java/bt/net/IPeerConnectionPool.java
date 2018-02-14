@@ -18,6 +18,7 @@ package bt.net;
 
 import bt.metainfo.TorrentId;
 
+import java.net.SocketAddress;
 import java.util.function.Consumer;
 
 /**
@@ -45,6 +46,16 @@ public interface IPeerConnectionPool {
      * @since 1.6
      */
     int size();
+
+    /**
+     * @since 1.7
+     */
+    boolean mightAddIncomingConnection(SocketAddress remoteAddress);
+
+    /**
+     * @since 1.7
+     */
+    boolean mightAddOutgoingConnection(TorrentId torrentId, SocketAddress remoteAddress);
 
     /**
      * @return Newly added or existing connection

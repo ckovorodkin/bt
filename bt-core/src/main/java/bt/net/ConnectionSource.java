@@ -107,7 +107,7 @@ public class ConnectionSource implements IConnectionSource {
             }
         }
 
-        if (connectionPool.size() >= config.getMaxPeerConnections()) {
+        if (!connectionPool.mightAddOutgoingConnection(torrentId, peer.getInetSocketAddress())) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("Will not attempt to establish connection to peer: {}. " +
                         "Reason: connections limit exceeded. Torrent: {}", peer, torrentId);

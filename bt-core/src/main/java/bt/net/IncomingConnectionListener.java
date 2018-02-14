@@ -31,6 +31,7 @@ public class IncomingConnectionListener {
     private final Set<PeerConnectionAcceptor> connectionAcceptors;
     private final ExecutorService connectionExecutor;
     private final IPeerConnectionPool connectionPool;
+    @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private final Config config;
 
     private final ExecutorService executor;
@@ -63,7 +64,7 @@ public class IncomingConnectionListener {
                             return;
                         }
 
-                        if (mightAddConnection()) {
+                        if (connectionPool.mightAddIncomingConnection(connectionRoutine.getRemoteAddress())) {
                             establishConnection(connectionRoutine);
                         } else {
                             if (LOGGER.isDebugEnabled()) {
@@ -81,7 +82,7 @@ public class IncomingConnectionListener {
             if (!shutdown) {
                 ConnectionResult connectionResult = connectionRoutine.establish();
                 if (connectionResult.isSuccess()) {
-                    if (!shutdown && mightAddConnection()) {
+                    if (!shutdown && connectionPool.mightAddIncomingConnection(connectionRoutine.getRemoteAddress())) {
                         connectionPool.addConnectionIfAbsent(connectionResult.getConnection());
                         added = true;
                     }
@@ -91,10 +92,6 @@ public class IncomingConnectionListener {
                 connectionRoutine.cancel();
             }
         });
-    }
-
-    private boolean mightAddConnection() {
-        return connectionPool.size() < config.getMaxPeerConnections();
     }
 
     public void shutdown() {
