@@ -67,7 +67,7 @@ public class IncomingConnectionListener {
                         new MDCWrapper()
                                 .putRemoteAddress(connectionRoutine.getRemoteAddress())
                                 .run(() -> {
-                                    if (mightAddConnection()) {
+                                    if (connectionPool.mightAddIncomingConnection(connectionRoutine.getRemoteAddress())) {
                                         establishConnection(connectionRoutine);
                                     } else {
                                         if (LOGGER.isDebugEnabled()) {
