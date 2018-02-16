@@ -26,6 +26,8 @@ import com.google.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Optional;
@@ -90,6 +92,16 @@ public class PeerConnectionPool implements IPeerConnectionPool {
     @Override
     public int size() {
         return connections.count();
+    }
+
+    @Override
+    public boolean mightAddIncomingConnection(SocketAddress remoteAddress) {
+        return remoteAddress instanceof InetSocketAddress && size() < config.getMaxPeerConnections();
+    }
+
+    @Override
+    public boolean mightAddOutgoingConnection(TorrentId torrentId, SocketAddress remoteAddress) {
+        return remoteAddress instanceof InetSocketAddress && size() < config.getMaxPeerConnections();
     }
 
     @Override
