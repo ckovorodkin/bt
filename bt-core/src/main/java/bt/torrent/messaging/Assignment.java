@@ -20,12 +20,14 @@ import bt.net.Peer;
 
 import java.time.Duration;
 
+import static java.lang.Math.max;
+
 class Assignment {
 
     enum Status { ACTIVE, DONE, TIMEOUT };
 
     private Peer peer;
-    private Integer piece;
+    private int piece;
     private ConnectionState connectionState;
 
     private final Duration limit;
@@ -36,7 +38,7 @@ class Assignment {
     private boolean aborted;
     private boolean finished;
 
-    Assignment(Peer peer, Integer piece, Duration limit) {
+    Assignment(Peer peer, int piece, Duration limit) {
         this.peer = peer;
         this.piece = piece;
         this.limit = limit;
@@ -46,15 +48,15 @@ class Assignment {
         return peer;
     }
 
-    Integer getPiece() {
+    int getPiece() {
         return piece;
     }
 
     Status getStatus() {
-        if (finished) {
+        if (finished || aborted) {
             return Status.DONE;
         } else if (started > 0) {
-            long duration = System.currentTimeMillis() - started;
+            long duration = System.currentTimeMillis() - max(started, checked);
             if (duration > limit.toMillis()) {
                 return Status.TIMEOUT;
             }

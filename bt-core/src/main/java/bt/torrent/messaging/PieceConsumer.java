@@ -16,11 +16,11 @@
 
 package bt.torrent.messaging;
 
+import bt.data.Bitfield;
 import bt.net.Peer;
 import bt.protocol.Have;
 import bt.protocol.Message;
 import bt.protocol.Piece;
-import bt.data.Bitfield;
 import bt.torrent.annotation.Consumes;
 import bt.torrent.annotation.Produces;
 import bt.torrent.data.BlockWrite;
@@ -32,6 +32,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
+
+import static bt.torrent.messaging.Mapper.buildKey;
 
 /**
  * Consumes blocks, received from the remote peer.
@@ -60,6 +62,13 @@ public class PieceConsumer {
         // check that this block was requested in the first place
         if (!checkBlockIsExpected(peer, connectionState, piece)) {
             return;
+        }
+
+        if (connectionState.getCurrentAssignment().isPresent()) {
+            Assignment assignment = connectionState.getCurrentAssignment().get();
+            if (piece.getPieceIndex() == assignment.getPiece()) {
+                assignment.check();
+            }
         }
 
         // discard blocks for pieces that have already been verified
@@ -99,7 +108,7 @@ public class PieceConsumer {
     }
 
     private boolean checkBlockIsExpected(Peer peer, ConnectionState connectionState, Piece piece) {
-        Object key = Mapper.mapper().buildKey(piece.getPieceIndex(), piece.getOffset(), piece.getBlock().length);
+        Mapper.Key key = buildKey(piece.getPieceIndex(), piece.getOffset(), piece.getBlock().length);
         boolean expected = connectionState.getPendingRequests().remove(key);
         if (!expected && LOGGER.isTraceEnabled()) {
             LOGGER.trace("Discarding unexpected block {} from peer: {}", piece, peer);
@@ -114,16 +123,9 @@ public class PieceConsumer {
         byte[] block = piece.getBlock();
 
         connectionState.incrementDownloaded(block.length);
-        if (connectionState.getCurrentAssignment().isPresent()) {
-            Assignment assignment = connectionState.getCurrentAssignment().get();
-            if (pieceIndex == assignment.getPiece()) {
-                assignment.check();
-            }
-        }
 
         CompletableFuture<BlockWrite> future = dataWorker.addBlock(peer, pieceIndex, offset, block);
-        connectionState.getPendingWrites().put(
-                Mapper.mapper().buildKey(pieceIndex, offset, block.length), future);
+        connectionState.getPendingWrites().put(buildKey(pieceIndex, offset, block.length), future);
         return future;
     }
 

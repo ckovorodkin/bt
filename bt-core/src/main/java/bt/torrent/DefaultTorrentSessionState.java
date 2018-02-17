@@ -95,4 +95,9 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
     public Set<Peer> getConnectedPeers() {
         return Collections.unmodifiableSet(worker.getPeers());
     }
+
+    @Override
+    public Set<Peer> getActivePeers() {
+        return Collections.unmodifiableSet(worker.getActivePeers());
+    }
 }

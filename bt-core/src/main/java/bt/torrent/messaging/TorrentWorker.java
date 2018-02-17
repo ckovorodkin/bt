@@ -190,7 +190,8 @@ public class TorrentWorker {
         Assignment assignment = assignments.get(peer);
         boolean shouldAssign;
         if (assignment != null) {
-            switch (assignment.getStatus()) {
+            final Assignment.Status status = assignment.getStatus();
+            switch (status) {
                 case ACTIVE: {
                     shouldAssign = false;
                     break;
@@ -211,11 +212,11 @@ public class TorrentWorker {
                     break;
                 }
                 default: {
-                    throw new IllegalStateException("Unexpected status: " + assignment.getStatus().name());
+                    throw new IllegalStateException("Unexpected status: " + status.name());
                 }
             }
         } else {
-            shouldAssign = true;
+            shouldAssign = !timeoutedPeers.containsKey(peer);
         }
 
         if (connectionState.isPeerChoking()) {
@@ -357,6 +358,12 @@ public class TorrentWorker {
      */
     public Set<Peer> getPeers() {
         return peerMap.keySet();
+    }
+
+    public Set<Peer> getActivePeers() {
+        final Set<Peer> peers = new HashSet<>(peerMap.keySet());
+        peers.removeAll(timeoutedPeers.keySet());
+        return peers;
     }
 
     /**

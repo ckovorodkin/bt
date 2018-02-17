@@ -43,7 +43,8 @@ public class SessionStatePrinter {
     private static final String TORRENT_INFO = "Downloading %s (%,d B)";
     private static final String DURATION_INFO ="Elapsed time: %s\t\tRemaining time: %s";
     private static final String RATE_FORMAT = "%4.1f %s/s";
-    private static final String SESSION_INFO = "Peers: %2d\t\tDown: " + RATE_FORMAT + "\t\tUp: " + RATE_FORMAT + "\t\t";
+    private static final String SESSION_INFO =
+            "Peers: %2d/%d\t\tDown: " + RATE_FORMAT + "\t\tUp: " + RATE_FORMAT + "\t\t";
 
     private static final String WHITESPACES = "\u0020\u0020\u0020\u0020\u0020\u0020\u0020\u0020\u0020\u0020\u0020";
 
@@ -191,8 +192,16 @@ public class SessionStatePrinter {
             Rate downRate = new Rate(downloaded - this.downloaded);
             Rate upRate = new Rate(uploaded - this.uploaded);
             int peerCount = sessionState.getConnectedPeers().size();
-            String sessionInfo = String.format(SESSION_INFO, peerCount, downRate.getQuantity(), downRate.getMeasureUnit(),
-                upRate.getQuantity(), upRate.getMeasureUnit());
+            int activePeerCount = sessionState.getActivePeers().size();
+            String sessionInfo = String.format(
+                    SESSION_INFO,
+                    activePeerCount,
+                    peerCount,
+                    downRate.getQuantity(),
+                    downRate.getMeasureUnit(),
+                    upRate.getQuantity(),
+                    upRate.getMeasureUnit()
+            );
             graphics.putString(0, 3, sessionInfo);
 
             double completePercents = getCompletePercentage(sessionState.getPiecesTotal(), sessionState.getPiecesRemaining());

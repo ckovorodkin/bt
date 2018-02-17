@@ -132,7 +132,7 @@ public class Assignments {
         return localBitfield.getPiecesRemaining() <= assignedPieces.cardinality();
     }
 
-    private Assignment assign(Peer peer, Integer piece) {
+    private Assignment assign(Peer peer, int piece) {
         Assignment assignment = new Assignment(peer, piece, config.getMaxPieceReceivingTime());
         assignments.put(peer, assignment);
         assignedPieces.set(piece);

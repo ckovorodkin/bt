@@ -30,6 +30,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import static bt.torrent.messaging.Mapper.buildKey;
+
 /**
  * Contains basic information about a connection's state.
  *
@@ -47,9 +49,9 @@ public class ConnectionState {
     private Optional<Boolean> shouldChoke;
     private long lastChoked;
 
-    private Set<Object> cancelledPeerRequests;
-    private Set<Object> pendingRequests;
-    private Map<Object, CompletableFuture<BlockWrite>> pendingWrites;
+    private Set<Mapper.Key> cancelledPeerRequests;
+    private Set<Mapper.Key> pendingRequests;
+    private Map<Mapper.Key, CompletableFuture<BlockWrite>> pendingWrites;
 
     private Queue<Request> requestQueue;
     private boolean initializedRequestQueue;
@@ -189,7 +191,7 @@ public class ConnectionState {
      * @return Set of block request keys
      * @since 1.0
      */
-    public Set<Object> getCancelledPeerRequests() {
+    public Set<Mapper.Key> getCancelledPeerRequests() {
         return cancelledPeerRequests;
     }
 
@@ -199,7 +201,7 @@ public class ConnectionState {
      * @since 1.0
      */
     public void onCancel(Cancel cancel) {
-        cancelledPeerRequests.add(Mapper.mapper().buildKey(
+        cancelledPeerRequests.add(buildKey(
                 cancel.getPieceIndex(), cancel.getOffset(), cancel.getLength()));
     }
 
@@ -210,7 +212,7 @@ public class ConnectionState {
      * @return Set of block request keys
      * @since 1.0
      */
-    public Set<Object> getPendingRequests() {
+    public Set<Mapper.Key> getPendingRequests() {
         return pendingRequests;
     }
 
@@ -221,7 +223,7 @@ public class ConnectionState {
      * @return Pending block writes, mapped by keys of corresponding requests.
      * @since 1.0
      */
-    public Map<Object, CompletableFuture<BlockWrite>> getPendingWrites() {
+    public Map<Mapper.Key, CompletableFuture<BlockWrite>> getPendingWrites() {
         return pendingWrites;
     }
 
@@ -246,6 +248,10 @@ public class ConnectionState {
     }
 
     void setCurrentAssignment(Assignment assignment) {
+        assert !this.assignment.isPresent();
+        assert requestQueue.isEmpty();
+        assert pendingRequests.isEmpty();
+        assert !initializedRequestQueue;
         this.assignment = Optional.of(assignment);
     }
 

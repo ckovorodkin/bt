@@ -17,20 +17,13 @@
 package bt.torrent.messaging;
 
 import java.util.Arrays;
-import java.util.Optional;
 
 /**
  * Creates unique keys, that can be tested for equality with each other.
  *
  * @since 1.0
  */
-public class Mapper {
-
-    private static final Mapper instance = new Mapper();
-
-    public static Mapper mapper() {
-        return instance;
-    }
+public final class Mapper {
 
     private Mapper() {}
 
@@ -39,12 +32,8 @@ public class Mapper {
      *
      * @since 1.0
      */
-    public Object buildKey(int pieceIndex, int offset, int length) {
+    public static Key buildKey(int pieceIndex, int offset, int length) {
         return new Key(pieceIndex, offset, length);
-    }
-
-    static Optional<Key> decodeKey(Object object) {
-        return (object instanceof Key) ? Optional.of((Key) object) : Optional.empty();
     }
 
     static class Key {

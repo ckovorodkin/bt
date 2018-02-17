@@ -69,4 +69,9 @@ public interface TorrentSessionState {
      * @since 1.0
      */
     Set<Peer> getConnectedPeers();
+
+    /**
+     * @since 1.7
+     */
+    Set<Peer> getActivePeers();
 }

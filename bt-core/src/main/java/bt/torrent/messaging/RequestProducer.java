@@ -17,6 +17,7 @@
 package bt.torrent.messaging;
 
 import bt.BtException;
+import bt.data.Bitfield;
 import bt.data.ChunkDescriptor;
 import bt.data.DataDescriptor;
 import bt.net.Peer;
@@ -24,9 +25,7 @@ import bt.protocol.Cancel;
 import bt.protocol.InvalidMessageException;
 import bt.protocol.Message;
 import bt.protocol.Request;
-import bt.data.Bitfield;
 import bt.torrent.annotation.Produces;
-import bt.torrent.data.BlockWrite;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,9 +33,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
+
+import static bt.torrent.messaging.Mapper.buildKey;
 
 /**
  * Produces block requests to the remote peer.
@@ -89,47 +88,45 @@ public class RequestProducer {
         Queue<Request> requestQueue = connectionState.getRequestQueue();
         while (!requestQueue.isEmpty() && connectionState.getPendingRequests().size() <= MAX_PENDING_REQUESTS) {
             Request request = requestQueue.poll();
-            Object key = Mapper.mapper().buildKey(request.getPieceIndex(), request.getOffset(), request.getLength());
-            messageConsumer.accept(request);
-            connectionState.getPendingRequests().add(key);
+            ChunkDescriptor chunk = chunks.get(request.getPieceIndex());
+            assert request.getOffset() % chunk.blockSize() == 0;
+            final int blockIndex = (int) (request.getOffset() / chunk.blockSize());
+            if (!chunk.isPresent(blockIndex)) {
+                Mapper.Key key = buildKey(request.getPieceIndex(), request.getOffset(), request.getLength());
+                messageConsumer.accept(request);
+                connectionState.getPendingRequests().add(key);
+            } else {
+                if (LOGGER.isTraceEnabled()) {
+                    LOGGER.trace("Rejecting request to remote peer because the chunk block is already present: " +
+                            "piece index {" + request.getPieceIndex() + "}, offset {" + request.getOffset()
+                            + "}, length {" + request.getLength() + "}");
+                }
+            }
+        }
+
+        if (requestQueue.isEmpty() //br
+                && connectionState.getPendingRequests().isEmpty() //br
+                && connectionState.getPendingWrites().isEmpty()) {
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("Aborted downloading piece #{}. All queries are empty.", currentPiece);
+            }
+            assignment.abort();
         }
     }
 
     private void resetConnection(ConnectionState connectionState, Consumer<Message> messageConsumer) {
-        connectionState.getRequestQueue().clear();
         connectionState.setInitializedRequestQueue(false);
-        connectionState.getPendingRequests().forEach(r -> {
-            Mapper.decodeKey(r).ifPresent(key -> {
-                messageConsumer.accept(new Cancel(key.getPieceIndex(), key.getOffset(), key.getLength()));
-            });
-        });
+        connectionState.getRequestQueue().clear();
+        connectionState.getPendingRequests().forEach(key -> //br
+                messageConsumer.accept(new Cancel(key.getPieceIndex(), key.getOffset(), key.getLength())));
         connectionState.getPendingRequests().clear();
     }
 
     private void initializeRequestQueue(ConnectionState connectionState, int pieceIndex) {
-        List<Request> requests = buildRequests(pieceIndex).stream()
-            .filter(request -> {
-                Object key = Mapper.mapper().buildKey(
-                    request.getPieceIndex(), request.getOffset(), request.getLength());
-                if (connectionState.getPendingRequests().contains(key)) {
-                    return false;
-                }
-
-                CompletableFuture<BlockWrite> future = connectionState.getPendingWrites().get(key);
-                if (future == null) {
-                    return true;
-                } else if (!future.isDone()) {
-                    return false;
-                }
-
-                boolean failed = future.isDone() && future.getNow(null).getError().isPresent();
-                if (failed) {
-                    connectionState.getPendingWrites().remove(key);
-                }
-                return failed;
-
-            }).collect(Collectors.toList());
-
+        assert connectionState.getRequestQueue().isEmpty();
+        assert connectionState.getPendingRequests().isEmpty();
+        assert connectionState.getPendingWrites().isEmpty();
+        List<Request> requests = buildRequests(pieceIndex);
         Collections.shuffle(requests);
         connectionState.getRequestQueue().addAll(requests);
         connectionState.setInitializedRequestQueue(true);
