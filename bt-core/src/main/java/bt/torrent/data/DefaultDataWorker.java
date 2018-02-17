@@ -112,6 +112,9 @@ class DefaultDataWorker implements DataWorker {
                     if (chunk.isComplete()) {
                         verificationFuture = CompletableFuture.supplyAsync(() -> {
                             boolean verified = verifier.verify(chunk);
+                            if (LOGGER.isTraceEnabled()) {
+                                LOGGER.trace("Chunk verification result: {}, piece index {{}}", verified, pieceIndex);
+                            }
                             if (verified) {
                                 data.getBitfield().markVerified(pieceIndex);
                             }

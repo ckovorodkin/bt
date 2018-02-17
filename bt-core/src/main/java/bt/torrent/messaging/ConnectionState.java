@@ -18,6 +18,7 @@ package bt.torrent.messaging;
 
 import bt.protocol.Cancel;
 import bt.protocol.Request;
+import bt.statistic.TransferAmountHandler;
 import bt.torrent.data.BlockWrite;
 
 import java.util.HashMap;
@@ -41,8 +42,7 @@ public class ConnectionState {
     private volatile boolean choking;
     private volatile boolean peerChoking;
 
-    private volatile long downloaded;
-    private volatile long uploaded;
+    private final TransferAmountHandler transferAmountHandler;
 
     private Optional<Boolean> shouldChoke;
     private long lastChoked;
@@ -55,7 +55,8 @@ public class ConnectionState {
     private boolean initializedRequestQueue;
     private Optional<Assignment> assignment;
 
-    ConnectionState() {
+    ConnectionState(TransferAmountHandler transferAmountHandler) {
+        this.transferAmountHandler = transferAmountHandler;
         this.choking = true;
         this.peerChoking = true;
         this.shouldChoke = Optional.empty();
@@ -168,35 +169,17 @@ public class ConnectionState {
     }
 
     /**
-     * @return Amount of data downloaded from remote peer via this connection
-     * @since 1.0
-     */
-    public long getDownloaded() {
-        return downloaded;
-    }
-
-    /**
-     * @see #getDownloaded()
      * @since 1.0
      */
     public void incrementDownloaded(long downloaded) {
-        this.downloaded += downloaded;
+        transferAmountHandler.handleDownload(downloaded);
     }
 
     /**
-     * @return Amount of data uploaded to remote peer via this connection
-     * @since 1.0
-     */
-    public long getUploaded() {
-        return uploaded;
-    }
-
-    /**
-     * @see #getUploaded()
      * @since 1.0
      */
     public void incrementUploaded(long uploaded) {
-        this.uploaded += uploaded;
+        transferAmountHandler.handleUpload(uploaded);
     }
 
     /**

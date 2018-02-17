@@ -18,8 +18,7 @@ package bt.torrent.messaging;
 
 import bt.metainfo.TorrentId;
 import bt.net.Peer;
-
-import java.util.Optional;
+import bt.statistic.TransferAmountStatistic;
 
 /**
  *<p><b>Note that this class implements a service.
@@ -28,22 +27,19 @@ import java.util.Optional;
 public class PeerWorkerFactory implements IPeerWorkerFactory {
 
     private MessageRouter router;
+    private final TransferAmountStatistic transferAmountStatistic;
 
-    public PeerWorkerFactory(MessageRouter router) {
+    public PeerWorkerFactory(MessageRouter router, TransferAmountStatistic transferAmountStatistic) {
         this.router = router;
-    }
-
-    @Override
-    public PeerWorker createPeerWorker(Peer peer) {
-        return createPeerWorker(Optional.empty(), peer);
+        this.transferAmountStatistic = transferAmountStatistic;
     }
 
     @Override
     public PeerWorker createPeerWorker(TorrentId torrentId, Peer peer) {
-        return createPeerWorker(Optional.of(torrentId), peer);
-    }
-
-    private PeerWorker createPeerWorker(Optional<TorrentId> torrentId, Peer peer) {
-        return new RoutingPeerWorker(peer, torrentId, router);
+        return new RoutingPeerWorker(peer,
+                torrentId,
+                router,
+                transferAmountStatistic.getTransferAmountHandler(torrentId, peer)
+        );
     }
 }

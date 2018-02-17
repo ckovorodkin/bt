@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016—2017 Andrei Tomashpolskiy and individual contributors.
+ * Copyright (c) 2016—2018 Andrei Tomashpolskiy and individual contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,20 @@
  * limitations under the License.
  */
 
-package bt.torrent.messaging;
+package bt.statistic;
 
 import bt.metainfo.TorrentId;
 import bt.net.Peer;
 
 /**
- * @since 1.0
+ * @author Oleg Ermolaev Date: 17.02.2018 8:43
  */
-public interface IPeerWorkerFactory {
+public interface TransferAmountStatistic {
+    TransferAmount getTransferAmount();
 
-    /**
-     * Create a torrent-aware peer worker for a given peer.
-     *
-     * @since 1.0
-     */
-    PeerWorker createPeerWorker(TorrentId torrentId, Peer peer);
+    TransferAmount getTransferAmount(TorrentId torrentId);
+
+    TransferAmount getTransferAmount(TorrentId torrentId, Peer peer);
+
+    TransferAmountHandler getTransferAmountHandler(TorrentId torrentId, Peer peer);
 }

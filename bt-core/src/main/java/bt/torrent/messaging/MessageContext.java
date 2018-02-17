@@ -19,6 +19,7 @@ package bt.torrent.messaging;
 import bt.metainfo.TorrentId;
 import bt.net.Peer;
 
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -28,11 +29,12 @@ import java.util.Optional;
  */
 public class MessageContext {
 
-    private Optional<TorrentId> torrentId;
+    private TorrentId torrentId;
     private Peer peer;
     private ConnectionState connectionState;
 
-    MessageContext(Optional<TorrentId> torrentId, Peer peer, ConnectionState connectionState) {
+    MessageContext(TorrentId torrentId, Peer peer, ConnectionState connectionState) {
+        Objects.requireNonNull(torrentId);
         this.torrentId = torrentId;
         this.peer = peer;
         this.connectionState = connectionState;
@@ -44,7 +46,8 @@ public class MessageContext {
      * @since 1.0
      */
     public Optional<TorrentId> getTorrentId() {
-        return torrentId;
+        assert torrentId != null;
+        return Optional.of(torrentId);
     }
 
     /**

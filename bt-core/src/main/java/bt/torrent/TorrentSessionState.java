@@ -48,7 +48,7 @@ public interface TorrentSessionState {
     BitSet getPieces();
 
     /**
-     * @return
+     * @since 1.7
      */
     double getRatio();
 

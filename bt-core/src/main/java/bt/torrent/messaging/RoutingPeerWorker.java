@@ -25,9 +25,9 @@ import bt.protocol.Message;
 import bt.protocol.NotInterested;
 import bt.protocol.Piece;
 import bt.protocol.Unchoke;
+import bt.statistic.TransferAmountHandler;
 
 import java.util.Deque;
-import java.util.Optional;
 import java.util.concurrent.LinkedBlockingDeque;
 
 /**
@@ -48,8 +48,11 @@ class RoutingPeerWorker implements PeerWorker {
 
     private Choker choker;
 
-    public RoutingPeerWorker(Peer peer, Optional<TorrentId> torrentId, MessageRouter router) {
-        this.connectionState = new ConnectionState();
+    public RoutingPeerWorker(Peer peer,
+                             TorrentId torrentId,
+                             MessageRouter router,
+                             TransferAmountHandler transferAmountHandler) {
+        this.connectionState = new ConnectionState(transferAmountHandler);
         this.router = router;
         this.context = new MessageContext(torrentId, peer, connectionState);
         this.outgoingMessages = new LinkedBlockingDeque<>();

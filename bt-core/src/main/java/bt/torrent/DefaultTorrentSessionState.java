@@ -16,46 +16,32 @@
 
 package bt.torrent;
 
+import bt.metainfo.TorrentId;
 import bt.net.Peer;
-import bt.torrent.messaging.ConnectionState;
+import bt.statistic.TransferAmount;
+import bt.statistic.TransferAmountStatistic;
 import bt.torrent.messaging.TorrentWorker;
 
 import java.util.BitSet;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
-
-import static java.util.stream.Collectors.summingLong;
 
 public class DefaultTorrentSessionState implements TorrentSessionState {
 
-    /**
-     * Recently calculated amounts of downloaded and uploaded data
-     */
-    private final Map<Peer, TransferAmounts> recentAmountsForConnectedPeers;
-
-    /**
-     * Historical data (amount of data downloaded from disconnected peers)
-     */
-    private final AtomicLong downloadedFromDisconnected;
-
-    /**
-     * Historical data (amount of data uploaded to disconnected peers)
-     */
-    private final AtomicLong uploadedToDisconnected;
+    private final TorrentId torrentId;
+    private final TransferAmountStatistic transferAmountStatistic;
 
     private final BitSet emptyPieces;
 
     private final TorrentDescriptor descriptor;
     private final TorrentWorker worker;
 
-    public DefaultTorrentSessionState(TorrentDescriptor descriptor, TorrentWorker worker) {
-        this.recentAmountsForConnectedPeers = new HashMap<>();
-        this.downloadedFromDisconnected = new AtomicLong();
-        this.uploadedToDisconnected = new AtomicLong();
+    public DefaultTorrentSessionState(TorrentId torrentId,
+                                      TorrentDescriptor descriptor,
+                                      TorrentWorker worker,
+                                      TransferAmountStatistic transferAmountStatistic) {
+        this.torrentId = torrentId;
+        this.transferAmountStatistic = transferAmountStatistic;
         this.emptyPieces = new BitSet();
         this.descriptor = descriptor;
         this.worker = worker;
@@ -94,71 +80,19 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
     }
 
     @Override
-    public synchronized long getDownloaded() {
-        long downloaded = getCurrentAmounts().values().stream().collect(summingLong(TransferAmounts::getDownloaded));
-        downloaded += downloadedFromDisconnected.get();
-        return downloaded;
+    public long getDownloaded() {
+        final TransferAmount transferAmount = transferAmountStatistic.getTransferAmount(torrentId);
+        return transferAmount.getDownload();
     }
 
     @Override
-    public synchronized long getUploaded() {
-        long uploaded = getCurrentAmounts().values().stream().collect(summingLong(TransferAmounts::getUploaded));
-        uploaded += uploadedToDisconnected.get();
-        return uploaded;
-    }
-
-    private synchronized Map<Peer, TransferAmounts> getCurrentAmounts() {
-        Map<Peer, TransferAmounts> connectedPeers = getAmountsForConnectedPeers();
-
-        Set<Peer> disconnectedPeers = new HashSet<>();
-        recentAmountsForConnectedPeers.forEach((peer, amounts) -> {
-            if (!connectedPeers.containsKey(peer)) {
-                downloadedFromDisconnected.addAndGet(amounts.getDownloaded());
-                uploadedToDisconnected.addAndGet(amounts.getUploaded());
-                disconnectedPeers.add(peer);
-            }
-        });
-        recentAmountsForConnectedPeers.keySet().removeAll(disconnectedPeers);
-
-        recentAmountsForConnectedPeers.putAll(connectedPeers);
-
-        return recentAmountsForConnectedPeers;
-    }
-
-    private Map<Peer, TransferAmounts> getAmountsForConnectedPeers() {
-        return worker.getPeers().stream()
-                .collect(
-                        HashMap::new,
-                        (acc, peer) -> {
-                            ConnectionState connectionState = worker.getConnectionState(peer);
-                            acc.put(
-                                    peer,
-                                    new TransferAmounts(connectionState.getDownloaded(), connectionState.getUploaded())
-                            );
-                        },
-                        HashMap::putAll);
+    public long getUploaded() {
+        final TransferAmount transferAmount = transferAmountStatistic.getTransferAmount(torrentId);
+        return transferAmount.getUpload();
     }
 
     @Override
     public Set<Peer> getConnectedPeers() {
         return Collections.unmodifiableSet(worker.getPeers());
-    }
-
-    private static class TransferAmounts {
-        private final long downloaded;
-        private final long uploaded;
-
-        public TransferAmounts(long downloaded, long uploaded) {
-            this.downloaded = downloaded;
-            this.uploaded = uploaded;
-        }
-
-        public long getDownloaded() {
-            return downloaded;
-        }
-
-        public long getUploaded() {
-            return uploaded;
-        }
     }
 }

@@ -16,10 +16,12 @@
 
 package bt.torrent.messaging;
 
+import bt.metainfo.TorrentId;
 import bt.net.Peer;
 import bt.protocol.Have;
 import bt.protocol.Message;
 import bt.protocol.Piece;
+import bt.statistic.TransferAmountStatisticService;
 import bt.torrent.annotation.Consumes;
 import bt.torrent.annotation.Produces;
 import org.junit.Before;
@@ -54,8 +56,9 @@ public class RoutingPeerWorker_WithCompilerTest {
         }};
 
         DefaultMessageRouter router = new DefaultMessageRouter(agents);
-        IPeerWorkerFactory peerWorkerFactory = new PeerWorkerFactory(router);
-        this.peerWorker = peerWorkerFactory.createPeerWorker(mock(Peer.class));
+        TransferAmountStatisticService transferAmountStatistic = new TransferAmountStatisticService();
+        IPeerWorkerFactory peerWorkerFactory = new PeerWorkerFactory(router, transferAmountStatistic);
+        this.peerWorker = peerWorkerFactory.createPeerWorker(TorrentId.fromBytes(new byte[20]), mock(Peer.class));
     }
 
     private interface Executable {

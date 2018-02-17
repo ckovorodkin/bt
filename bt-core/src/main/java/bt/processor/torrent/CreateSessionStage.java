@@ -21,12 +21,13 @@ import bt.event.EventSource;
 import bt.metainfo.TorrentId;
 import bt.net.IConnectionSource;
 import bt.net.IMessageDispatcher;
-import bt.processor.TerminateOnErrorProcessingStage;
 import bt.processor.ProcessingStage;
+import bt.processor.TerminateOnErrorProcessingStage;
 import bt.processor.listener.ProcessingEvent;
 import bt.runtime.Config;
-import bt.torrent.PiecesStatistics;
+import bt.statistic.TransferAmountStatistic;
 import bt.torrent.DefaultTorrentSessionState;
+import bt.torrent.PiecesStatistics;
 import bt.torrent.TorrentDescriptor;
 import bt.torrent.TorrentRegistry;
 import bt.torrent.messaging.Assignments;
@@ -41,6 +42,7 @@ import java.util.function.Supplier;
 
 public class CreateSessionStage<C extends TorrentContext> extends TerminateOnErrorProcessingStage<C> {
 
+    private TransferAmountStatistic transferAmountStatistic;
     private TorrentRegistry torrentRegistry;
     private EventSource eventSource;
     private IConnectionSource connectionSource;
@@ -49,6 +51,7 @@ public class CreateSessionStage<C extends TorrentContext> extends TerminateOnErr
     private Config config;
 
     public CreateSessionStage(ProcessingStage<C> next,
+                              TransferAmountStatistic transferAmountStatistic,
                               TorrentRegistry torrentRegistry,
                               EventSource eventSource,
                               IConnectionSource connectionSource,
@@ -56,6 +59,7 @@ public class CreateSessionStage<C extends TorrentContext> extends TerminateOnErr
                               Set<Object> messagingAgents,
                               Config config) {
         super(next);
+        this.transferAmountStatistic = transferAmountStatistic;
         this.torrentRegistry = torrentRegistry;
         this.eventSource = eventSource;
         this.connectionSource = connectionSource;
@@ -70,7 +74,7 @@ public class CreateSessionStage<C extends TorrentContext> extends TerminateOnErr
         TorrentDescriptor descriptor = torrentRegistry.register(torrentId);
 
         MessageRouter router = new DefaultMessageRouter(messagingAgents);
-        IPeerWorkerFactory peerWorkerFactory = new PeerWorkerFactory(router);
+        IPeerWorkerFactory peerWorkerFactory = new PeerWorkerFactory(router, transferAmountStatistic);
 
         Supplier<Bitfield> bitfieldSupplier = context::getBitfield;
         Supplier<Assignments> assignmentsSupplier = context::getAssignments;
@@ -78,7 +82,7 @@ public class CreateSessionStage<C extends TorrentContext> extends TerminateOnErr
         TorrentWorker torrentWorker = new TorrentWorker(torrentId, messageDispatcher, connectionSource, peerWorkerFactory,
                 bitfieldSupplier, assignmentsSupplier, statisticsSupplier, eventSource, config);
 
-        context.setState(new DefaultTorrentSessionState(descriptor, torrentWorker));
+        context.setState(new DefaultTorrentSessionState(torrentId, descriptor, torrentWorker, transferAmountStatistic));
         context.setRouter(router);
     }
 
