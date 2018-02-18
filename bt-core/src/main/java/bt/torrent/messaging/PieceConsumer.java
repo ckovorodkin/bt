@@ -17,6 +17,8 @@
 package bt.torrent.messaging;
 
 import bt.data.Bitfield;
+import bt.data.ChunkDescriptor;
+import bt.data.DataDescriptor;
 import bt.net.Peer;
 import bt.protocol.Have;
 import bt.protocol.Message;
@@ -28,6 +30,7 @@ import bt.torrent.data.DataWorker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -45,11 +48,13 @@ public class PieceConsumer {
     private static final Logger LOGGER = LoggerFactory.getLogger(PieceConsumer.class);
 
     private Bitfield bitfield;
+    private final List<ChunkDescriptor> chunks;
     private DataWorker dataWorker;
     private ConcurrentLinkedQueue<BlockWrite> completedBlocks;
 
-    public PieceConsumer(Bitfield bitfield, DataWorker dataWorker) {
-        this.bitfield = bitfield;
+    public PieceConsumer(DataDescriptor dataDescriptor, DataWorker dataWorker) {
+        this.bitfield = dataDescriptor.getBitfield();
+        this.chunks = dataDescriptor.getChunkDescriptors();
         this.dataWorker = dataWorker;
         this.completedBlocks = new ConcurrentLinkedQueue<>();
     }
@@ -76,6 +81,20 @@ public class PieceConsumer {
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace(
                         "Discarding received block because the chunk is already complete and verified: " +
+                        "piece index {" + piece.getPieceIndex() + "}, " +
+                        "offset {" + piece.getOffset() + "}, " +
+                        "length {" + piece.getBlock().length + "}");
+            }
+            return;
+        }
+
+        final ChunkDescriptor chunk = chunks.get(piece.getPieceIndex());
+        final long blockSize = chunk.blockSize();
+        assert piece.getOffset() % blockSize == 0;
+        final int blockIndex = (int) (piece.getOffset() / blockSize);
+        if (chunk.isPresent(blockIndex)) {
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("Discarding received block because the chunk is already contains that block: " +
                         "piece index {" + piece.getPieceIndex() + "}, " +
                         "offset {" + piece.getOffset() + "}, " +
                         "length {" + piece.getBlock().length + "}");
