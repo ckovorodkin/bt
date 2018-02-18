@@ -50,4 +50,9 @@ public interface DataWorker {
      * @since 1.0
      */
     CompletableFuture<BlockWrite> addBlock(Peer peer, int pieceIndex, int offset, byte[] block);
+
+    /**
+     * @since 1.7
+     */
+    boolean isOverload();
 }

@@ -33,7 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 
-import static bt.torrent.messaging.Mapper.buildKey;
+import static bt.torrent.messaging.BlockKey.buildBlockKey;
 
 /**
  * Consumes blocks, received from the remote peer.
@@ -84,32 +84,44 @@ public class PieceConsumer {
         }
 
         addBlock(peer, connectionState, piece).whenComplete((block, error) -> {
-            if (error != null) {
-                throw new RuntimeException("Failed to perform request to write block", error);
-            } else if (block.getError().isPresent()) {
-                throw new RuntimeException("Failed to perform request to write block", block.getError().get());
-            }
-            if (block.isRejected()) {
-                if (LOGGER.isTraceEnabled()) {
-                    LOGGER.trace("Request to write block could not be completed: " + piece);
+            boolean verificationFuturePresent = false;
+            try {
+                if (error != null) {
+                    throw new RuntimeException("Failed to perform request to write block", error);
                 }
-            } else {
+                if (block.getError().isPresent()) {
+                    throw new RuntimeException("Failed to perform request to write block", block.getError().get());
+                }
+                if (block.isRejected()) {
+                    if (LOGGER.isTraceEnabled()) {
+                        LOGGER.trace("Request to write block could not be completed: " + piece);
+                    }
+                    return;
+                }
                 Optional<CompletableFuture<Boolean>> verificationFuture = block.getVerificationFuture();
-                if (verificationFuture.isPresent()) {
+                verificationFuturePresent = verificationFuture.isPresent();
+                if (verificationFuturePresent) {
                     verificationFuture.get().whenComplete((verified, error1) -> {
-                        if (error1 != null) {
-                            throw new RuntimeException("Failed to verify block", error1);
+                        try {
+                            if (error1 != null) {
+                                throw new RuntimeException("Failed to verify block", error1);
+                            }
+                            completedBlocks.add(block);
+                        } finally {
+                            connectionState.getPendingWrites().remove(buildBlockKey(piece));
                         }
-                        completedBlocks.add(block);
                     });
+                }
+            } finally {
+                if (!verificationFuturePresent) {
+                    connectionState.getPendingWrites().remove(buildBlockKey(piece));
                 }
             }
         });
     }
 
     private boolean checkBlockIsExpected(Peer peer, ConnectionState connectionState, Piece piece) {
-        Mapper.Key key = buildKey(piece.getPieceIndex(), piece.getOffset(), piece.getBlock().length);
-        boolean expected = connectionState.getPendingRequests().remove(key);
+        boolean expected = connectionState.getPendingRequests().remove(buildBlockKey(piece));
         if (!expected && LOGGER.isTraceEnabled()) {
             LOGGER.trace("Discarding unexpected block {} from peer: {}", piece, peer);
         }
@@ -125,7 +137,7 @@ public class PieceConsumer {
         connectionState.incrementDownloaded(block.length);
 
         CompletableFuture<BlockWrite> future = dataWorker.addBlock(peer, pieceIndex, offset, block);
-        connectionState.getPendingWrites().put(buildKey(pieceIndex, offset, block.length), future);
+        connectionState.getPendingWrites().put(buildBlockKey(piece), future);
         return future;
     }
 

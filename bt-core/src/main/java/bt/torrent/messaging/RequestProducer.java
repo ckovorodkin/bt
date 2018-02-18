@@ -26,6 +26,7 @@ import bt.protocol.InvalidMessageException;
 import bt.protocol.Message;
 import bt.protocol.Request;
 import bt.torrent.annotation.Produces;
+import bt.torrent.data.DataWorker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +36,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.function.Consumer;
 
-import static bt.torrent.messaging.Mapper.buildKey;
+import static bt.torrent.messaging.BlockKey.buildBlockKey;
 
 /**
  * Produces block requests to the remote peer.
@@ -50,8 +51,10 @@ public class RequestProducer {
 
     private Bitfield bitfield;
     private List<ChunkDescriptor> chunks;
+    private final DataWorker dataWorker;
 
-    public RequestProducer(DataDescriptor dataDescriptor) {
+    public RequestProducer(DataDescriptor dataDescriptor, DataWorker dataWorker) {
+        this.dataWorker = dataWorker;
         this.bitfield = dataDescriptor.getBitfield();
         this.chunks = dataDescriptor.getChunkDescriptors();
     }
@@ -87,12 +90,18 @@ public class RequestProducer {
 
         Queue<Request> requestQueue = connectionState.getRequestQueue();
         while (!requestQueue.isEmpty() && connectionState.getPendingRequests().size() <= MAX_PENDING_REQUESTS) {
+            if (dataWorker.isOverload()) {
+                assignment.check();
+                //todo: one-time-message per each overload
+                //LOGGER.trace("Can't produce write block request -- dataWorker is overloaded");
+                break;
+            }
             Request request = requestQueue.poll();
             ChunkDescriptor chunk = chunks.get(request.getPieceIndex());
             assert request.getOffset() % chunk.blockSize() == 0;
             final int blockIndex = (int) (request.getOffset() / chunk.blockSize());
             if (!chunk.isPresent(blockIndex)) {
-                Mapper.Key key = buildKey(request.getPieceIndex(), request.getOffset(), request.getLength());
+                BlockKey key = buildBlockKey(request.getPieceIndex(), request.getOffset(), request.getLength());
                 messageConsumer.accept(request);
                 connectionState.getPendingRequests().add(key);
             } else {

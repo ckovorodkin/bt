@@ -30,7 +30,7 @@ import bt.statistic.TransferAmountHandler;
 import java.util.Deque;
 import java.util.concurrent.LinkedBlockingDeque;
 
-import static bt.torrent.messaging.Mapper.buildKey;
+import static bt.torrent.messaging.BlockKey.buildBlockKey;
 
 /**
  * Messaging interface, that encapsulates all messaging agents (consumers and producers)
@@ -138,12 +138,7 @@ class RoutingPeerWorker implements PeerWorker {
     }
 
     private boolean isCancelled(Piece piece) {
-
-        int pieceIndex = piece.getPieceIndex(),
-                offset = piece.getOffset(),
-                length = piece.getBlock().length;
-
-        return connectionState.getCancelledPeerRequests().remove(buildKey(pieceIndex, offset, length));
+        return connectionState.getCancelledPeerRequests().remove(buildBlockKey(piece));
     }
 
     private void updateConnection() {

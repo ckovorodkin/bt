@@ -72,7 +72,7 @@ public class InitializeTorrentProcessingStage<C extends TorrentContext> extends 
         context.getRouter().registerMessagingAgent(new BitfieldConsumer(pieceStatistics, eventSink));
         context.getRouter().registerMessagingAgent(new PieceConsumer(bitfield, dataWorker));
         context.getRouter().registerMessagingAgent(new PeerRequestConsumer(dataWorker));
-        context.getRouter().registerMessagingAgent(new RequestProducer(descriptor.getDataDescriptor()));
+        context.getRouter().registerMessagingAgent(new RequestProducer(descriptor.getDataDescriptor(), dataWorker));
         context.getRouter().registerMessagingAgent(new MetadataProducer(() -> context.getTorrent().orElse(null), config));
 
         context.setBitfield(bitfield);

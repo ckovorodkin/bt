@@ -65,8 +65,8 @@ class DefaultDataWorker implements DataWorker {
 
     @Override
     public CompletableFuture<BlockRead> addBlockRequest(Peer peer, int pieceIndex, int offset, int length) {
-        if (pendingTasksCount.get() >= maxPendingTasks) {
-            LOGGER.warn("Can't accept read block request from peer (" + peer + ") -- queue is full");
+        if (isOverload() && LOGGER.isTraceEnabled()) {
+            LOGGER.trace("Can't accept read block request from peer (" + peer + ") -- queue is full");
             return CompletableFuture.completedFuture(BlockRead.rejected(peer, pieceIndex, offset));
         } else {
             pendingTasksCount.incrementAndGet();
@@ -86,31 +86,35 @@ class DefaultDataWorker implements DataWorker {
 
     @Override
     public CompletableFuture<BlockWrite> addBlock(Peer peer, int pieceIndex, int offset, byte[] block) {
-        if (pendingTasksCount.get() >= maxPendingTasks) {
-            LOGGER.warn("Can't accept write block request -- queue is full");
-            return CompletableFuture.completedFuture(BlockWrite.rejected(peer, pieceIndex, offset, block));
-        } else {
-            pendingTasksCount.incrementAndGet();
-            return CompletableFuture.supplyAsync(() -> {
-                try {
-                    if (data.getBitfield().isVerified(pieceIndex)) {
-                        if (LOGGER.isTraceEnabled()) {
-                            LOGGER.trace("Rejecting request to write block because the chunk is already complete and verified: " +
-                                    "piece index {" + pieceIndex + "}, offset {" + offset + "}, length {" + block.length + "}");
-                        }
-                        return BlockWrite.rejected(peer, pieceIndex, offset, block);
-                    }
-
-                    ChunkDescriptor chunk = data.getChunkDescriptors().get(pieceIndex);
-                    chunk.getData().getSubrange(offset).putBytes(block);
+        if (isOverload() && LOGGER.isTraceEnabled()) {
+            LOGGER.trace("Accepting write block request under overload (producer already inactive)");
+        }
+        pendingTasksCount.incrementAndGet();
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                if (data.getBitfield().isVerified(pieceIndex)) {
                     if (LOGGER.isTraceEnabled()) {
-                        LOGGER.trace("Successfully processed block: " +
-                                "piece index {" + pieceIndex + "}, offset {" + offset + "}, length {" + block.length + "}");
+                        LOGGER.trace(
+                                "Rejecting request to write block because the chunk is already complete and verified: "
+                                        +
+                                        "piece index {" + pieceIndex + "}, offset {" + offset + "}, length {"
+                                        + block.length + "}");
                     }
+                    return BlockWrite.rejected(peer, pieceIndex, offset, block);
+                }
 
-                    CompletableFuture<Boolean> verificationFuture = null;
-                    if (chunk.isComplete()) {
-                        verificationFuture = CompletableFuture.supplyAsync(() -> {
+                ChunkDescriptor chunk = data.getChunkDescriptors().get(pieceIndex);
+                chunk.getData().getSubrange(offset).putBytes(block);
+                if (LOGGER.isTraceEnabled()) {
+                    LOGGER.trace("Successfully processed block: " +
+                            "piece index {" + pieceIndex + "}, offset {" + offset + "}, length {" + block.length + "}");
+                }
+
+                CompletableFuture<Boolean> verificationFuture = null;
+                if (chunk.isComplete()) {
+                    pendingTasksCount.incrementAndGet();
+                    verificationFuture = CompletableFuture.supplyAsync(() -> {
+                        try {
                             boolean verified = verifier.verify(chunk);
                             if (LOGGER.isTraceEnabled()) {
                                 LOGGER.trace("Chunk verification result: {}, piece index {{}}", verified, pieceIndex);
@@ -119,16 +123,23 @@ class DefaultDataWorker implements DataWorker {
                                 data.getBitfield().markVerified(pieceIndex);
                             }
                             return verified;
-                        }, executor);
-                    }
-
-                    return BlockWrite.complete(peer, pieceIndex, offset, block, verificationFuture);
-                } catch (Throwable e) {
-                    return BlockWrite.exceptional(peer, e, pieceIndex, offset, block);
-                } finally {
-                    pendingTasksCount.decrementAndGet();
+                        } finally {
+                            pendingTasksCount.decrementAndGet();
+                        }
+                    }, executor);
                 }
-            }, executor);
-        }
+
+                return BlockWrite.complete(peer, pieceIndex, offset, block, verificationFuture);
+            } catch (Throwable e) {
+                return BlockWrite.exceptional(peer, e, pieceIndex, offset, block);
+            } finally {
+                pendingTasksCount.decrementAndGet();
+            }
+        }, executor);
+    }
+
+    @Override
+    public boolean isOverload() {
+        return pendingTasksCount.get() >= maxPendingTasks;
     }
 }

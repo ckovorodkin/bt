@@ -30,7 +30,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static bt.torrent.messaging.Mapper.buildKey;
+import static bt.torrent.messaging.BlockKey.buildBlockKey;
 
 /**
  * Contains basic information about a connection's state.
@@ -49,9 +49,9 @@ public class ConnectionState {
     private Optional<Boolean> shouldChoke;
     private long lastChoked;
 
-    private Set<Mapper.Key> cancelledPeerRequests;
-    private Set<Mapper.Key> pendingRequests;
-    private Map<Mapper.Key, CompletableFuture<BlockWrite>> pendingWrites;
+    private Set<BlockKey> cancelledPeerRequests;
+    private Set<BlockKey> pendingRequests;
+    private Map<BlockKey, CompletableFuture<BlockWrite>> pendingWrites;
 
     private Queue<Request> requestQueue;
     private boolean initializedRequestQueue;
@@ -187,11 +187,11 @@ public class ConnectionState {
     /**
      * Get keys of block requests, that have been cancelled by remote peer.
      *
-     * @see Mapper#buildKey(int, int, int)
+     * @see BlockKey#buildBlockKey(int, int, int)
      * @return Set of block request keys
      * @since 1.0
      */
-    public Set<Mapper.Key> getCancelledPeerRequests() {
+    public Set<BlockKey> getCancelledPeerRequests() {
         return cancelledPeerRequests;
     }
 
@@ -201,29 +201,29 @@ public class ConnectionState {
      * @since 1.0
      */
     public void onCancel(Cancel cancel) {
-        cancelledPeerRequests.add(buildKey(
+        cancelledPeerRequests.add(buildBlockKey(
                 cancel.getPieceIndex(), cancel.getOffset(), cancel.getLength()));
     }
 
     /**
      * Get keys of block requests, that have been sent to the remote peer.
      *
-     * @see Mapper#buildKey(int, int, int)
+     * @see BlockKey#buildBlockKey(int, int, int)
      * @return Set of block request keys
      * @since 1.0
      */
-    public Set<Mapper.Key> getPendingRequests() {
+    public Set<BlockKey> getPendingRequests() {
         return pendingRequests;
     }
 
     /**
      * Get pending block writes, mapped by keys of corresponding requests.
      *
-     * @see Mapper#buildKey(int, int, int)
+     * @see BlockKey#buildBlockKey(int, int, int)
      * @return Pending block writes, mapped by keys of corresponding requests.
      * @since 1.0
      */
-    public Map<Mapper.Key, CompletableFuture<BlockWrite>> getPendingWrites() {
+    public Map<BlockKey, CompletableFuture<BlockWrite>> getPendingWrites() {
         return pendingWrites;
     }
 
