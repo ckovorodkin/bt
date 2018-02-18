@@ -96,21 +96,24 @@ public class RequestProducer {
                 //LOGGER.trace("Can't produce write block request -- dataWorker is overloaded");
                 break;
             }
+
             Request request = requestQueue.poll();
+
             ChunkDescriptor chunk = chunks.get(request.getPieceIndex());
             assert request.getOffset() % chunk.blockSize() == 0;
             final int blockIndex = (int) (request.getOffset() / chunk.blockSize());
-            if (!chunk.isPresent(blockIndex)) {
-                BlockKey key = buildBlockKey(request.getPieceIndex(), request.getOffset(), request.getLength());
-                messageConsumer.accept(request);
-                connectionState.getPendingRequests().add(key);
-            } else {
+            if (chunk.isPresent(blockIndex)) {
                 if (LOGGER.isTraceEnabled()) {
                     LOGGER.trace("Rejecting request to remote peer because the chunk block is already present: " +
                             "piece index {" + request.getPieceIndex() + "}, offset {" + request.getOffset()
                             + "}, length {" + request.getLength() + "}");
                 }
+                continue;
             }
+
+            BlockKey key = buildBlockKey(request.getPieceIndex(), request.getOffset(), request.getLength());
+            messageConsumer.accept(request);
+            connectionState.getPendingRequests().add(key);
         }
 
         if (requestQueue.isEmpty() //br
