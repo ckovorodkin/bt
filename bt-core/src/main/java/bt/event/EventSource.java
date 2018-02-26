@@ -33,6 +33,13 @@ public interface EventSource {
     EventSource onPeerDiscovered(Consumer<PeerDiscoveredEvent> listener);
 
     /**
+     * Fired, when a new outgoing connection with some peer can't be established.
+     *
+     * @since 1.5
+     */
+    EventSource onPeerUnreachable(Consumer<PeerUnreachableEvent> listener);
+
+    /**
      * Fired, when a new connection with some peer has been established.
      *
      * @since 1.5

@@ -25,9 +25,10 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * @since 1.0
@@ -38,7 +39,9 @@ public class SocketPeerConnection implements PeerConnection {
 
     private static final long WAIT_BETWEEN_READS = 100L;
 
-    private final AtomicReference<TorrentId> torrentId;
+    private final long id;
+    private final boolean incoming;
+    private /*final*/ TorrentId torrentId;
     private final Peer remotePeer;
 
     private final ChannelHandler handler;
@@ -48,8 +51,17 @@ public class SocketPeerConnection implements PeerConnection {
     private final ReentrantLock readLock;
     private final Condition condition;
 
-    SocketPeerConnection(Peer remotePeer, ChannelHandler handler) {
-        this.torrentId = new AtomicReference<>();
+    SocketPeerConnection(long id, boolean incoming, Peer remotePeer, TorrentId torrentId, ChannelHandler handler) {
+        this.id = id;
+        this.incoming = incoming;
+        if (incoming) {
+            if (torrentId != null) {
+                throw new IllegalArgumentException();
+            }
+            this.torrentId = null;
+        } else {
+            this.torrentId = requireNonNull(torrentId);
+        }
         this.remotePeer = remotePeer;
         this.handler = handler;
         this.lastActive = new AtomicLong();
@@ -57,17 +69,40 @@ public class SocketPeerConnection implements PeerConnection {
         this.condition = this.readLock.newCondition();
     }
 
+    public long getId() {
+        return id;
+    }
+
+    @Override
+    public boolean isIncoming() {
+        return incoming;
+    }
+
+    @Override
+    public Peer getRemotePeer() {
+        return remotePeer;
+    }
+
     /**
+     * Delayed one-time-initialization for incoming connection
+     *
+     * @param torrentId torrent identifier.
      * @since 1.0
      */
     @Override
-    public TorrentId setTorrentId(TorrentId torrentId) {
-        return this.torrentId.getAndSet(torrentId);
+    public void setTorrentId(TorrentId torrentId) {
+        if (!incoming) {
+            throw new IllegalStateException();
+        }
+        if (this.torrentId != null) {
+            throw new IllegalStateException();
+        }
+        this.torrentId = torrentId;
     }
 
     @Override
     public TorrentId getTorrentId() {
-        return torrentId.get();
+        return torrentId;
     }
 
     @Override
@@ -135,11 +170,6 @@ public class SocketPeerConnection implements PeerConnection {
 
     private void updateLastActive() {
         lastActive.set(System.currentTimeMillis());
-    }
-
-    @Override
-    public Peer getRemotePeer() {
-        return remotePeer;
     }
 
     @Override

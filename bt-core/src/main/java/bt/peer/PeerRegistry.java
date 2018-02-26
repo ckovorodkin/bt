@@ -17,6 +17,7 @@
 package bt.peer;
 
 import bt.event.EventSink;
+import bt.event.PeerSourceType;
 import bt.logging.MDCWrapper;
 import bt.metainfo.Torrent;
 import bt.metainfo.TorrentId;
@@ -188,13 +189,14 @@ public class PeerRegistry implements IPeerRegistry {
     private void queryPeerSource(TorrentId torrentId, PeerSource peerSource) {
         try {
             if (peerSource.update()) {
+                final PeerSourceType peerSourceType = peerSource.getPeerSourceType();
                 Collection<Peer> discoveredPeers = peerSource.getPeers();
                 Set<Peer> addedPeers = new HashSet<>();
                 Iterator<Peer> iter = discoveredPeers.iterator();
                 while (iter.hasNext()) {
                     Peer peer = iter.next();
                     if (!addedPeers.contains(peer)) {
-                        addPeer(torrentId, peer);
+                        addPeer(torrentId, peer, peerSourceType);
                         addedPeers.add(peer);
                     }
                     iter.remove();
@@ -207,12 +209,17 @@ public class PeerRegistry implements IPeerRegistry {
 
     @Override
     public void addPeer(TorrentId torrentId, Peer peer) {
+        addPeer(torrentId, peer, PeerSourceType.MANUAL);
+    }
+
+    @Override
+    public void addPeer(TorrentId torrentId, Peer peer, PeerSourceType peerSourceType) {
         if (isLocal(peer)) {
             return;
         }
         new MDCWrapper().putRemoteAddress(peer).run(() -> {
             cache.store(peer);
-            eventSink.firePeerDiscovered(torrentId, peer);
+            eventSink.firePeerDiscovered(torrentId, peer, peerSourceType);
         });
     }
 

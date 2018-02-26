@@ -16,6 +16,7 @@
 
 package bt.processor.magnet;
 
+import bt.event.PeerSourceType;
 import bt.metainfo.IMetadataService;
 import bt.metainfo.Torrent;
 import bt.metainfo.TorrentFile;
@@ -24,8 +25,8 @@ import bt.metainfo.TorrentSource;
 import bt.net.InetPeer;
 import bt.peer.IPeerRegistry;
 import bt.processor.ProcessingStage;
-import bt.processor.listener.ProcessingEvent;
 import bt.processor.TerminateOnErrorProcessingStage;
+import bt.processor.listener.ProcessingEvent;
 import bt.runtime.Config;
 import bt.torrent.TorrentDescriptor;
 import bt.torrent.TorrentRegistry;
@@ -74,7 +75,7 @@ public class FetchMetadataStage extends TerminateOnErrorProcessingStage<MagnetCo
         getDescriptor(torrentId).start();
 
         context.getMagnetUri().getPeerAddresses().forEach(peerAddress -> {
-            peerRegistry.addPeer(torrentId, new InetPeer(peerAddress));
+            peerRegistry.addPeer(torrentId, new InetPeer(peerAddress), PeerSourceType.MAGNET);
         });
 
         context.getMagnetUri().getTrackerUrls().forEach(trackerUrl -> {

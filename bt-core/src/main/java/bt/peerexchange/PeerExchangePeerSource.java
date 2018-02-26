@@ -16,6 +16,8 @@
 
 package bt.peerexchange;
 
+import bt.event.PeerSourceType;
+import bt.metainfo.TorrentId;
 import bt.net.Peer;
 import bt.peer.PeerSource;
 
@@ -28,16 +30,24 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 class PeerExchangePeerSource implements PeerSource {
 
+    private final TorrentId torrentId;
+
     private Queue<PeerExchange> messages;
     private volatile Collection<Peer> peers;
 
     private volatile boolean hasNewPeers;
     private final Object lock;
 
-    PeerExchangePeerSource() {
+    PeerExchangePeerSource(TorrentId torrentId) {
+        this.torrentId = torrentId;
         messages = new LinkedBlockingQueue<>();
         peers = Collections.emptyList();
         lock = new Object();
+    }
+
+    @Override
+    public PeerSourceType getPeerSourceType() {
+        return PeerSourceType.PEX;
     }
 
     @Override

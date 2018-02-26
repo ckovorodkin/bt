@@ -17,8 +17,12 @@
 package bt.torrent;
 
 import bt.net.Peer;
+import bt.statistic.TransferAmount;
+import bt.torrent.messaging.ConnectionState;
+import bt.torrent.messaging.PeerInfoView;
 
 import java.util.BitSet;
+import java.util.Collection;
 import java.util.Set;
 
 /**
@@ -65,6 +69,11 @@ public interface TorrentSessionState {
     long getUploaded();
 
     /**
+     * @since 1.7
+     */
+    TransferAmount getTransferAmount(Peer peer);
+
+    /**
      * @return Collection of peers, that this session is connected to
      * @since 1.0
      */
@@ -74,4 +83,29 @@ public interface TorrentSessionState {
      * @since 1.7
      */
     Set<Peer> getActivePeers();
+
+    /**
+     * @since 1.7
+     */
+    Set<Peer> getTimeoutedPeers();
+
+    /**
+     * @since 1.7
+     */
+    ConnectionState getConnectionState(Peer peer);
+
+    /**
+     * @since 1.7
+     */
+    Collection<PeerInfoView> getPeerInfos();
+
+    /**
+     * @since 1.7
+     */
+    Collection<PeerInfoView> getOnlinePeerInfos();
+
+    /**
+     * @since 1.7
+     */
+    Collection<PeerInfoView> getConnectedPeerInfos();
 }

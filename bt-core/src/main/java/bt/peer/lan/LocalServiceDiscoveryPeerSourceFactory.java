@@ -17,6 +17,7 @@
 package bt.peer.lan;
 
 import bt.BufferingMap;
+import bt.event.PeerSourceType;
 import bt.metainfo.TorrentId;
 import bt.net.InetPeer;
 import bt.net.Peer;
@@ -123,6 +124,11 @@ public class LocalServiceDiscoveryPeerSourceFactory implements PeerSourceFactory
     public PeerSource getPeerSource(TorrentId torrentId) {
         return new PeerSource() {
             private boolean updated;
+
+            @Override
+            public PeerSourceType getPeerSourceType() {
+                return PeerSourceType.LSD;
+            }
 
             @Override
             public boolean update() {

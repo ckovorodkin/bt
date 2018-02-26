@@ -30,6 +30,16 @@ import java.io.IOException;
 public interface PeerConnection extends Closeable {
 
     /**
+     * @since 1.7
+     */
+    long getId();
+
+    /**
+     * @since 1.7
+     */
+    boolean isIncoming();
+
+    /**
      * @return Remote peer
      * @since 1.0
      */
@@ -39,10 +49,9 @@ public interface PeerConnection extends Closeable {
      * Associate this connection with the given torrent ID.
      *
      * @param torrentId Torrent ID to associate this connection with
-     * @return Torrent ID, that this connection was previously associated with, or null
      * @since 1.5
      */
-    TorrentId setTorrentId(TorrentId torrentId);
+    void setTorrentId(TorrentId torrentId);
 
     /**
      * @return Torrent ID, that this connection is associated with, or null

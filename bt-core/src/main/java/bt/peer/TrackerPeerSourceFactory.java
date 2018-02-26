@@ -16,6 +16,7 @@
 
 package bt.peer;
 
+import bt.event.PeerSourceType;
 import bt.metainfo.Torrent;
 import bt.metainfo.TorrentId;
 import bt.net.Peer;
@@ -118,6 +119,11 @@ class TrackerPeerSourceFactory implements PeerSourceFactory {
     }
 
     private static final PeerSource noopSource = new PeerSource() {
+        @Override
+        public PeerSourceType getPeerSourceType() {
+            return PeerSourceType.UNKNOWN;
+        }
+
         @Override
         public boolean update() {
             return false;

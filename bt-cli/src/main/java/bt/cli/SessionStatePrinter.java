@@ -16,8 +16,13 @@
 
 package bt.cli;
 
+import bt.cli.display.Unit;
+import bt.event.PeerSourceType;
 import bt.metainfo.Torrent;
+import bt.net.Peer;
 import bt.torrent.TorrentSessionState;
+import bt.torrent.messaging.PeerInfoView;
+import bt.torrent.messaging.PeerState;
 import com.googlecode.lanterna.graphics.TextGraphics;
 import com.googlecode.lanterna.input.KeyStroke;
 import com.googlecode.lanterna.input.KeyType;
@@ -34,24 +39,36 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+
+import static bt.cli.comparator.InetAddressComparator.compareInetAddress;
+import static bt.cli.display.Unit.getDisplayString;
 
 public class SessionStatePrinter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SessionStatePrinter.class);
 
+    private static final Unit[] units = new Unit[]{new Unit(1L, "B"), new Unit(1L << 10, "KB"), //br
+            new Unit(1L << 20, "MB"), new Unit(1L << 30, "GB"), new Unit(1L << 40, "TB")};
+
+    private static final String AMOUNT_UNIT_FORMAT = "%6.1f %s";
+    private static final String RATE_UNIT_FORMAT = "%6.1f %s/s";
+
     private static final String TORRENT_INFO = "Downloading %s (%,d B)";
     private static final String DURATION_INFO ="Elapsed time: %s\t\tRemaining time: %s";
-    private static final String RATE_FORMAT = "%4.1f %s/s";
-    private static final String SESSION_INFO =
-            "Peers: %2d/%d\t\tDown: " + RATE_FORMAT + "\t\tUp: " + RATE_FORMAT + "\t\t";
+    private static final String SESSION_INFO = "Peers: %2d/%d\t\tDown: %11s %9s\t\tUp: %11s %9s\t\t";
 
     private static final String WHITESPACES = "\u0020\u0020\u0020\u0020\u0020\u0020\u0020\u0020\u0020\u0020\u0020";
 
-    private static final String LOG_ENTRY = "Downloading.. Peers: %s; Down: " + RATE_FORMAT +
-            "; Up: " + RATE_FORMAT + "; %.2f%% complete; Remaining time: %s";
+    private static final String LOG_ENTRY =
+            "Downloading.. Peers: %s; Down: %11s; Up: %11s; %.2f%% complete; Remaining time: %s";
 
-    private static final String LOG_ENTRY_SEED = "Seeding.. Peers: %s; Up: " + RATE_FORMAT;
+    private static final String LOG_ENTRY_SEED = "Seeding.. Peers: %s; Up: %11s";
 
     public static SessionStatePrinter createKeyInputAwarePrinter(Collection<KeyStrokeBinding> bindings) {
         return new SessionStatePrinter() {
@@ -103,6 +120,8 @@ public class SessionStatePrinter {
     private volatile long started;
     private volatile long downloaded;
     private volatile long uploaded;
+    private final ConcurrentHashMap<Peer, AtomicLong> peerDownloadMap;
+    private final ConcurrentHashMap<Peer, AtomicLong> peerUploadMap;
 
     public SessionStatePrinter() {
         try {
@@ -117,6 +136,8 @@ public class SessionStatePrinter {
 
             started = System.currentTimeMillis();
 
+            peerDownloadMap = new ConcurrentHashMap<>();
+            peerUploadMap = new ConcurrentHashMap<>();
             this.torrent = Optional.empty();
             printTorrentInfo();
         } catch (IOException e) {
@@ -179,28 +200,28 @@ public class SessionStatePrinter {
         }
 
         try {
+            final long currentTimeMillis = System.currentTimeMillis();
+
             long downloaded = sessionState.getDownloaded();
             long uploaded = sessionState.getUploaded();
 
             printTorrentNameAndSize(torrent);
 
-            String elapsedTime = getElapsedTime();
+            String elapsedTime = getElapsedTime(currentTimeMillis);
             String remainingTime = getRemainingTime(downloaded - this.downloaded,
                     sessionState.getPiecesRemaining(), sessionState.getPiecesTotal());
             graphics.putString(0, 2, String.format(DURATION_INFO, elapsedTime, remainingTime));
 
-            Rate downRate = new Rate(downloaded - this.downloaded);
-            Rate upRate = new Rate(uploaded - this.uploaded);
             int peerCount = sessionState.getConnectedPeers().size();
             int activePeerCount = sessionState.getActivePeers().size();
             String sessionInfo = String.format(
                     SESSION_INFO,
                     activePeerCount,
                     peerCount,
-                    downRate.getQuantity(),
-                    downRate.getMeasureUnit(),
-                    upRate.getQuantity(),
-                    upRate.getMeasureUnit()
+                    getDisplayString(RATE_UNIT_FORMAT, downloaded - this.downloaded, units, false),
+                    getDisplayString(AMOUNT_UNIT_FORMAT, downloaded, units),
+                    getDisplayString(RATE_UNIT_FORMAT, uploaded - this.uploaded, units, false),
+                    getDisplayString(AMOUNT_UNIT_FORMAT, uploaded, units)
             );
             graphics.putString(0, 3, sessionInfo);
 
@@ -215,15 +236,57 @@ public class SessionStatePrinter {
                 graphics.putString(0, 6, "Download is complete. Press Ctrl-C to stop seeding and exit.");
             }
 
+            final Collection<PeerInfoView> peerInfos = sessionState.getPeerInfos();
+
+            final Collection<PeerInfoView> onlinePeerInfos = sessionState.getOnlinePeerInfos();
+            final int onlinePeerCount = onlinePeerInfos.size();
+            final int onlineSeedCount = getSeeds(onlinePeerInfos);
+            final int onlineLeachCount = onlinePeerCount - onlineSeedCount;
+
+            final Collection<PeerInfoView> connectedPeerInfos = sessionState.getConnectedPeerInfos();
+            final int connectedPeerCount = connectedPeerInfos.size();
+            final int connectedSeedCount = getSeeds(connectedPeerInfos);
+            final int connectedLeachCount = connectedPeerCount - connectedSeedCount;
+
+            graphics.putString(0, 7, String.format(
+                    "Discovered: %d, online: %d, connected: %d, seeds: %d (%d), leeches: %d (%d)",
+                    peerInfos.size(),
+                    onlinePeerCount,
+                    connectedPeerCount,
+                    connectedSeedCount,
+                    onlineSeedCount,
+                    connectedLeachCount,
+                    onlineLeachCount
+            ));
+
+            //"Idle Rec  "
+            graphics.putString(0,
+                    8,
+                    "---------- Peer  Source State   Have ------------ Download -------------- Upload"
+            );
+            final List<PeerRecord> peerRecords = getPeerRecords(sessionState);
+            for (int i = 0; i < peerRecords.size() && i < 15; i++) {
+                final PeerRecord peerRecord = peerRecords.get(i);
+                graphics.putString(0, 9 + i, getPeerRecordString(currentTimeMillis, peerRecord));
+            }
+
             // might use RefreshType.DELTA, but it does not tolerate resizing of the window
             screen.refresh(Screen.RefreshType.COMPLETE);
 
             if (LOGGER.isDebugEnabled()) {
                 if (complete) {
-                    LOGGER.debug(String.format(LOG_ENTRY_SEED, peerCount, upRate.getQuantity(), upRate.getMeasureUnit()));
+                    LOGGER.debug(String.format(LOG_ENTRY_SEED,
+                            peerCount,
+                            getDisplayString(RATE_UNIT_FORMAT, uploaded - this.uploaded, units, false)
+                    ));
                 } else {
-                    LOGGER.debug(String.format(LOG_ENTRY, peerCount, downRate.getQuantity(), downRate.getMeasureUnit(),
-                            upRate.getQuantity(), upRate.getMeasureUnit(), completePercents, remainingTime));
+                    LOGGER.debug(String.format(LOG_ENTRY,
+                            peerCount,
+                            getDisplayString(RATE_UNIT_FORMAT, downloaded - this.downloaded, units, false),
+                            getDisplayString(RATE_UNIT_FORMAT, uploaded - this.uploaded, units, false),
+                            completePercents,
+                            remainingTime
+                    ));
                 }
             }
 
@@ -236,8 +299,18 @@ public class SessionStatePrinter {
         }
     }
 
-    private String getElapsedTime() {
-        Duration elapsed = Duration.ofMillis(System.currentTimeMillis() - started);
+    private int getSeeds(Collection<PeerInfoView> peerInfos) {
+        int result = 0;
+        for (PeerInfoView peerInfo : peerInfos) {
+            if (peerInfo.getPieces() == peerInfo.getPiecesTotal()) {
+                result++;
+            }
+        }
+        return result;
+    }
+
+    private String getElapsedTime(long currentTimeMillis) {
+        Duration elapsed = Duration.ofMillis(currentTimeMillis - started);
         return formatDuration(elapsed);
     }
 
@@ -324,46 +397,91 @@ public class SessionStatePrinter {
         return ((total - remaining) / ((double) total) * 100);
     }
 
-    private static class Rate {
-
-        private long bytes;
-        private double quantity;
-        private String measureUnit;
-
-        Rate(long delta) {
-            if (delta < 0) {
-//                throw new IllegalArgumentException("delta: " + delta);
-                // TODO: this is a workaround for some nasty bug in the session state,
-                // due to which the delta is sometimes (very seldom) negative
-                // To not crash the UI let's just skip the problematic 'tick' and pretend that nothing was received
-                // instead of throwing an exception
-                LOGGER.warn("Negative delta: " + delta + "; will not re-calculate rate");
-                delta = 0;
-                quantity = 0;
-                measureUnit = "B";
-            } else if (delta < (2 << 9)) {
-                quantity = delta;
-                measureUnit = "B";
-            } else if (delta < (2 << 19)) {
-                quantity = delta / (2 << 9);
-                measureUnit = "KB";
-            } else {
-                quantity = ((double) delta) / (2 << 19);
-                measureUnit = "MB";
+    private List<PeerRecord> getPeerRecords(TorrentSessionState sessionState) {
+        final Set<Peer> timeoutedPeers = sessionState.getTimeoutedPeers();
+        final Collection<PeerInfoView> onlinePeerInfos = sessionState.getOnlinePeerInfos();
+        return onlinePeerInfos.stream().map(peerInfo -> new PeerRecord(peerInfo,
+                timeoutedPeers.contains(peerInfo.getPeer()),
+                sessionState.getConnectionState(peerInfo.getPeer())
+        )).sorted((o1, o2) -> {
+            int cmp = -Long.compare(o1.getDownload() + o1.getUpload(), o2.getDownload() + o2.getUpload());
+            if (cmp != 0) {
+                return cmp;
             }
-            bytes = delta;
-        }
+            cmp = -Integer.compare(o1.getPieces(), o2.getPieces());
+            if (cmp != 0) {
+                return cmp;
+            }
+            cmp = compareInetAddress(o1.getInetAddress(), o2.getInetAddress());
+            if (cmp != 0) {
+                return cmp;
+            }
+            cmp = Integer.compare(o1.getPort(), o2.getPort());
+            return cmp;
+        }).collect(Collectors.toList());
+    }
 
-        public long getBytes() {
-            return bytes;
-        }
+    private String getPeerRecordString(@SuppressWarnings("UnusedParameters") long currentTimeMillis,
+                                       PeerRecord peerRecord) {
+        final String flags = getFlags(peerRecord);
 
-        public double getQuantity() {
-            return quantity;
-        }
+        final AtomicLong previousDownload =
+                peerDownloadMap.computeIfAbsent(peerRecord.getPeer(), it -> new AtomicLong());
+        final long download = peerRecord.getDownload();
+        final long downloadDelta = download - previousDownload.get();
+        previousDownload.set(download);
 
-        public String getMeasureUnit() {
-            return measureUnit;
+        final AtomicLong previousUpload = peerUploadMap.computeIfAbsent(peerRecord.getPeer(), it -> new AtomicLong());
+        final long upload = peerRecord.getUpload();
+        final long uploadDelta = upload - previousUpload.get();
+        previousUpload.set(upload);
+
+        return String.format("%15s%s %5.1f%% %9s %11s %9s %11s",
+                peerRecord.getInetAddress().getHostAddress(),
+                //peerRecord.getPeerInfo().getPeer().getPort(),//" %5s"
+                flags,
+                //peerRecord.getConnectAt() == null ? "" : (peerRecord.getConnectAt() - currentTimeMillis + 500L) / 1000L,
+                //peerRecord.getConnectAttempts(), //"%4s %2d "
+                peerRecord.getPieces() * 100.0 / peerRecord.getPiecesTotal(),
+                getDisplayString(AMOUNT_UNIT_FORMAT, download, units),
+                getDisplayString(RATE_UNIT_FORMAT, downloadDelta, units),
+                getDisplayString(AMOUNT_UNIT_FORMAT, upload, units),
+                getDisplayString(RATE_UNIT_FORMAT, uploadDelta, units)
+        );
+    }
+
+    private String getFlags(PeerRecord peerRecord) {
+        final StringBuilder sb = new StringBuilder();
+        final Set<PeerSourceType> peerSourceTypes = peerRecord.getPeerSourceTypes();
+        sb.append(peerSourceTypes.contains(PeerSourceType.MANUAL) ? 'X' : ' ');
+        sb.append(peerSourceTypes.contains(PeerSourceType.INCOMING) ? 'I' : ' ');
+        sb.append(peerSourceTypes.contains(PeerSourceType.MAGNET) ? 'M' : ' ');
+        sb.append(peerSourceTypes.contains(PeerSourceType.TRACKER) ? 'T' : ' ');
+        sb.append(peerSourceTypes.contains(PeerSourceType.PEX) ? 'E' : ' ');
+        sb.append(peerSourceTypes.contains(PeerSourceType.DHT) ? 'H' : ' ');
+        sb.append(peerSourceTypes.contains(PeerSourceType.LSD) ? 'L' : ' ');
+        sb.append(peerSourceTypes.contains(PeerSourceType.UNKNOWN) ? 'U' : ' ');
+        //sb.append(' ');
+        final PeerState peerState = peerRecord.getPeerState();
+        switch (peerState) {
+            case DISCONNECTED:
+                sb.append('D');
+                break;
+            case CONNECTING:
+                sb.append('C');
+                break;
+            case ACTIVE:
+                sb.append('A');
+                break;
+            default:
+                throw new RuntimeException(String.format("Unsupported peerState: '%s'", peerState));
         }
+        sb.append(peerRecord.isTimeouted() ? 'T' : ' ');
+        //sb.append(' ');
+        sb.append(Boolean.TRUE.equals(peerRecord.isChoking()) ? 'C' : ' ');
+        sb.append(Boolean.TRUE.equals(peerRecord.isInterested()) ? 'I' : ' ');
+        sb.append(Boolean.TRUE.equals(peerRecord.isPeerInterested()) ? 'i' : ' ');
+        sb.append(Boolean.TRUE.equals(peerRecord.isPeerChoking()) ? 'c' : ' ');
+        return sb.toString();
     }
 }

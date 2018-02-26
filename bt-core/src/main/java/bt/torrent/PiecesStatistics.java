@@ -33,7 +33,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class PiecesStatistics {
 
-    private final Bitfield localBitfield;
     private final Map<Peer, BitSet> peerPiecesMap;
     private final BitSetAccumulator accumulator;
 
@@ -42,10 +41,9 @@ public class PiecesStatistics {
      *
      * @since 1.7
      */
-    public PiecesStatistics(Bitfield localBitfield) {
-        this.localBitfield = localBitfield;
+    public PiecesStatistics(int piecesTotal) {
         this.peerPiecesMap = new ConcurrentHashMap<>();
-        this.accumulator = new BitSetAccumulator(localBitfield.getPiecesTotal());
+        this.accumulator = new BitSetAccumulator(piecesTotal);
     }
 
     /**
@@ -139,7 +137,7 @@ public class PiecesStatistics {
         return accumulator.getLength();
     }
 
-    public double getRatio() {
+    public double getRatio(Bitfield localBitfield) {
         final double ratio;
         final BitSet local = localBitfield.getPieces();
         synchronized (accumulator) {

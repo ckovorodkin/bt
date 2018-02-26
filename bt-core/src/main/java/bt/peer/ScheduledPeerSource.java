@@ -16,6 +16,7 @@
 
 package bt.peer;
 
+import bt.event.PeerSourceType;
 import bt.net.Peer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,16 +38,23 @@ public abstract class ScheduledPeerSource implements PeerSource {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ScheduledPeerSource.class);
 
+    private final PeerSourceType peerSourceType;
     private final ExecutorService executor;
     private final ReentrantLock lock;
     private final AtomicReference<Future<?>> futureOptional;
     private final Queue<Peer> peers;
 
-    public ScheduledPeerSource(ExecutorService executor) {
+    public ScheduledPeerSource(PeerSourceType peerSourceType, ExecutorService executor) {
+        this.peerSourceType = peerSourceType;
         this.executor = executor;
         this.lock = new ReentrantLock();
         this.futureOptional = new AtomicReference<>();
         this.peers = new LinkedBlockingQueue<>();
+    }
+
+    @Override
+    public PeerSourceType getPeerSourceType() {
+        return peerSourceType;
     }
 
     @Override

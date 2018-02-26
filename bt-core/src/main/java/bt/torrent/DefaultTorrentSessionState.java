@@ -20,31 +20,38 @@ import bt.metainfo.TorrentId;
 import bt.net.Peer;
 import bt.statistic.TransferAmount;
 import bt.statistic.TransferAmountStatistic;
+import bt.torrent.messaging.ConnectionState;
+import bt.torrent.messaging.PeerInfoView;
+import bt.torrent.messaging.PeerManager;
 import bt.torrent.messaging.TorrentWorker;
 
 import java.util.BitSet;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 
 public class DefaultTorrentSessionState implements TorrentSessionState {
 
     private final TorrentId torrentId;
+    private final TorrentDescriptor descriptor;
+    private final TorrentWorker worker;
+    private final PeerManager peerManager;
     private final TransferAmountStatistic transferAmountStatistic;
 
     private final BitSet emptyPieces;
 
-    private final TorrentDescriptor descriptor;
-    private final TorrentWorker worker;
 
     public DefaultTorrentSessionState(TorrentId torrentId,
                                       TorrentDescriptor descriptor,
                                       TorrentWorker worker,
+                                      PeerManager peerManager,
                                       TransferAmountStatistic transferAmountStatistic) {
         this.torrentId = torrentId;
-        this.transferAmountStatistic = transferAmountStatistic;
-        this.emptyPieces = new BitSet();
         this.descriptor = descriptor;
         this.worker = worker;
+        this.peerManager = peerManager;
+        this.transferAmountStatistic = transferAmountStatistic;
+        this.emptyPieces = new BitSet();
     }
 
     @Override
@@ -92,6 +99,11 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
     }
 
     @Override
+    public TransferAmount getTransferAmount(Peer peer) {
+        return transferAmountStatistic.getTransferAmount(torrentId, peer);
+    }
+
+    @Override
     public Set<Peer> getConnectedPeers() {
         return Collections.unmodifiableSet(worker.getPeers());
     }
@@ -99,5 +111,30 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
     @Override
     public Set<Peer> getActivePeers() {
         return Collections.unmodifiableSet(worker.getActivePeers());
+    }
+
+    @Override
+    public Set<Peer> getTimeoutedPeers() {
+        return Collections.unmodifiableSet(worker.getTimeoutedPeers());
+    }
+
+    @Override
+    public ConnectionState getConnectionState(Peer peer) {
+        return worker.getConnectionState(peer);
+    }
+
+    @Override
+    public Collection<PeerInfoView> getPeerInfos() {
+        return peerManager.getPeerInfos();
+    }
+
+    @Override
+    public Collection<PeerInfoView> getOnlinePeerInfos() {
+        return peerManager.getOnlinePeerInfos();
+    }
+
+    @Override
+    public Collection<PeerInfoView> getConnectedPeerInfos() {
+        return peerManager.getConnectedPeerInfos();
     }
 }

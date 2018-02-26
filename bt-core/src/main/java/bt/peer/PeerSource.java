@@ -16,6 +16,7 @@
 
 package bt.peer;
 
+import bt.event.PeerSourceType;
 import bt.net.Peer;
 
 import java.util.Collection;
@@ -24,6 +25,10 @@ import java.util.Collection;
  * @since 1.0
  */
 public interface PeerSource {
+    /**
+     * @since 1.7
+     */
+    PeerSourceType getPeerSourceType();
 
     /**
      * Ask to update the list of peers (usually from an external source).

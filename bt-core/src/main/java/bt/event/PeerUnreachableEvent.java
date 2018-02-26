@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016—2017 Andrei Tomashpolskiy and individual contributors.
+ * Copyright (c) 2016—2018 Andrei Tomashpolskiy and individual contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,21 +22,19 @@ import bt.net.Peer;
 import java.util.Objects;
 
 /**
- * Indicates, that a connection with some peer has been terminated.
+ * Indicates, that a new outgoing connection with some peer can't be established.
  *
- * @since 1.5
+ * @since 1.7
  */
-public class PeerDisconnectedEvent extends BaseEvent implements TorrentEvent {
+public class PeerUnreachableEvent extends BaseEvent implements TorrentEvent {
 
     private final TorrentId torrentId;
     private final Peer peer;
-    private final long connectionId;
 
-    protected PeerDisconnectedEvent(long id, long timestamp, TorrentId torrentId, Peer peer, long connectionId) {
+    protected PeerUnreachableEvent(long id, long timestamp, TorrentId torrentId, Peer peer) {
         super(id, timestamp);
         this.torrentId = Objects.requireNonNull(torrentId);
         this.peer = Objects.requireNonNull(peer);
-        this.connectionId = connectionId;
     }
 
     @Override
@@ -45,22 +43,15 @@ public class PeerDisconnectedEvent extends BaseEvent implements TorrentEvent {
     }
 
     /**
-     * @since 1.5
+     * @since 1.7
      */
     public Peer getPeer() {
         return peer;
     }
 
-    /**
-     * @since 1.7
-     */
-    public long getConnectionId() {
-        return connectionId;
-    }
-
     @Override
     public String toString() {
         return "[" + this.getClass().getSimpleName() + "] id {" + getId() + "}, timestamp {" + getTimestamp() +
-                "}, torrent {" + torrentId + "}, peer {" + peer + "}, connectionId {" + connectionId + "}";
+                "}, torrent {" + torrentId + "}, peer {" + peer + "}";
     }
 }

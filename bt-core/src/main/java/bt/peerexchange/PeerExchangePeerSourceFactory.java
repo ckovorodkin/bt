@@ -121,7 +121,7 @@ public class PeerExchangePeerSourceFactory implements PeerSourceFactory {
     private PeerExchangePeerSource getOrCreatePeerSource(TorrentId torrentId) {
         PeerExchangePeerSource peerSource = peerSources.get(torrentId);
         if (peerSource == null) {
-            peerSource = new PeerExchangePeerSource();
+            peerSource = new PeerExchangePeerSource(torrentId);
             PeerExchangePeerSource existing = peerSources.putIfAbsent(torrentId, peerSource);
             if (existing != null) {
                 peerSource = existing;

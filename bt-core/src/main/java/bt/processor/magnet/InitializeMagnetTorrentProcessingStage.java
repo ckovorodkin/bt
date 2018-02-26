@@ -17,12 +17,18 @@
 package bt.processor.magnet;
 
 import bt.event.EventSink;
+import bt.event.EventSource;
 import bt.metainfo.TorrentId;
+import bt.net.IConnectionSource;
+import bt.net.IMessageDispatcher;
+import bt.net.IPeerConnectionPool;
 import bt.net.Peer;
 import bt.processor.ProcessingStage;
 import bt.processor.listener.ProcessingEvent;
 import bt.processor.torrent.InitializeTorrentProcessingStage;
 import bt.runtime.Config;
+import bt.service.IRuntimeLifecycleBinder;
+import bt.statistic.TransferAmountStatistic;
 import bt.torrent.PiecesStatistics;
 import bt.torrent.TorrentRegistry;
 import bt.torrent.data.IDataWorkerFactory;
@@ -39,11 +45,29 @@ public class InitializeMagnetTorrentProcessingStage extends InitializeTorrentPro
     private EventSink eventSink;
 
     public InitializeMagnetTorrentProcessingStage(ProcessingStage<MagnetContext> next,
+                                                  TransferAmountStatistic transferAmountStatistic,
+                                                  IConnectionSource connectionSource,
+                                                  IPeerConnectionPool peerConnectionPool,
+                                                  IMessageDispatcher messageDispatcher,
                                                   TorrentRegistry torrentRegistry,
                                                   IDataWorkerFactory dataWorkerFactory,
+                                                  EventSource eventSource,
                                                   EventSink eventSink,
+                                                  IRuntimeLifecycleBinder lifecycleBinder,
                                                   Config config) {
-        super(next, torrentRegistry, dataWorkerFactory, eventSink, config);
+        super(
+                next,
+                transferAmountStatistic,
+                connectionSource,
+                peerConnectionPool,
+                messageDispatcher,
+                torrentRegistry,
+                dataWorkerFactory,
+                eventSource,
+                eventSink,
+                lifecycleBinder,
+                config
+        );
         this.eventSink = eventSink;
     }
 

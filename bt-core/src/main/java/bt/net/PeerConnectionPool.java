@@ -147,9 +147,24 @@ public class PeerConnectionPool implements IPeerConnectionPool {
         }
 
         if (added) {
-            eventSink.firePeerConnected(newConnection.getTorrentId(), newConnection.getRemotePeer());
+            eventSink.firePeerConnected(
+                    newConnection.getTorrentId(),
+                    newConnection.getRemotePeer(),
+                    newConnection.isIncoming(),
+                    newConnection.getId()
+            );
         }
         return added;
+    }
+
+    @Override
+    public void disconnect(Peer peer) {
+        cleanerLock.lock();
+        try {
+            purgeConnectionWithPeer(peer);
+        } finally {
+            cleanerLock.unlock();
+        }
     }
 
     private class Cleaner implements Runnable {
@@ -165,6 +180,9 @@ public class PeerConnectionPool implements IPeerConnectionPool {
                     Peer peer = connection.getRemotePeer();
                     if (connection.isClosed()) {
                         new MDCWrapper().putRemoteAddress(peer).run(() -> {
+                            if (LOGGER.isDebugEnabled()) {
+                                LOGGER.debug("Removing closed peer connection: {}", peer);
+                            }
                             purgeConnectionWithPeer(peer);
                         });
                     } else if (System.currentTimeMillis() - connection.getLastActive()
@@ -188,10 +206,13 @@ public class PeerConnectionPool implements IPeerConnectionPool {
     private void purgeConnectionWithPeer(Peer peer) {
         PeerConnection purged = connections.remove(peer);
         if (purged != null) {
-            if (!purged.isClosed()) {
-                purged.closeQuietly();
+            try {
+                if (!purged.isClosed()) {
+                    purged.closeQuietly();
+                }
+            } finally {
+                eventSink.firePeerDisconnected(purged.getTorrentId(), peer, purged.getId());
             }
-            eventSink.firePeerDisconnected(purged.getTorrentId(), peer);
         }
     }
 

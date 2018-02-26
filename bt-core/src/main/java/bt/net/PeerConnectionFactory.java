@@ -45,11 +45,14 @@ import java.nio.channels.SocketChannel;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class PeerConnectionFactory implements IPeerConnectionFactory {
     private static final Logger LOGGER = LoggerFactory.getLogger(PeerConnectionFactory.class);
 
     private static final Duration socketTimeout = Duration.ofSeconds(30);
+
+    private static final AtomicLong connectionId = new AtomicLong(0);
 
     private MessageHandler<Message> protocol;
 
@@ -171,7 +174,8 @@ public class PeerConnectionFactory implements IPeerConnectionFactory {
         ChannelHandler channelHandler = new SocketChannelHandler(channel, in, out, pipeline::bindHandler, dataReceiver);
         channelHandler.register();
 
-        PeerConnection connection = new SocketPeerConnection(peer, channelHandler);
+        PeerConnection connection =
+                new SocketPeerConnection(connectionId.getAndIncrement(), incoming, peer, torrentId, channelHandler);
         ConnectionHandler connectionHandler;
         if (incoming) {
             connectionHandler = connectionHandlerFactory.getIncomingHandler();

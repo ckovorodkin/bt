@@ -30,11 +30,20 @@ public class PeerConnectedEvent extends BaseEvent implements TorrentEvent {
 
     private final TorrentId torrentId;
     private final Peer peer;
+    private final boolean incoming;
+    private final long connectionId;
 
-    protected PeerConnectedEvent(long id, long timestamp, TorrentId torrentId, Peer peer) {
+    protected PeerConnectedEvent(long id,
+                                 long timestamp,
+                                 TorrentId torrentId,
+                                 Peer peer,
+                                 boolean incoming,
+                                 long connectionId) {
         super(id, timestamp);
         this.torrentId = Objects.requireNonNull(torrentId);
         this.peer = Objects.requireNonNull(peer);
+        this.incoming = incoming;
+        this.connectionId = connectionId;
     }
 
     @Override
@@ -49,9 +58,24 @@ public class PeerConnectedEvent extends BaseEvent implements TorrentEvent {
         return peer;
     }
 
+    /**
+     * @since 1.7
+     */
+    public boolean isIncoming() {
+        return incoming;
+    }
+
+    /**
+     * @since 1.7
+     */
+    public long getConnectionId() {
+        return connectionId;
+    }
+
     @Override
     public String toString() {
         return "[" + this.getClass().getSimpleName() + "] id {" + getId() + "}, timestamp {" + getTimestamp() +
-                "}, torrent {" + torrentId + "}, peer {" + peer + "}";
+                "}, torrent {" + torrentId + "}, peer {" + peer + "}, incoming {" + incoming + "}, connectionId {"
+                + connectionId + "}";
     }
 }

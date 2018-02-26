@@ -62,4 +62,9 @@ public interface IPeerConnectionPool {
      * @since 1.6
      */
     PeerConnection addConnectionIfAbsent(PeerConnection connection);
+
+    /**
+     * @since 1.7
+     */
+    void disconnect(Peer peer);
 }

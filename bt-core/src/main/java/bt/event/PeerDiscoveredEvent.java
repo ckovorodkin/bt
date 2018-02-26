@@ -30,11 +30,17 @@ public class PeerDiscoveredEvent extends BaseEvent implements TorrentEvent {
 
     private final TorrentId torrentId;
     private final Peer peer;
+    private final PeerSourceType peerSourceType;
 
-    protected PeerDiscoveredEvent(long id, long timestamp, TorrentId torrentId, Peer peer) {
+    protected PeerDiscoveredEvent(long id,
+                                  long timestamp,
+                                  TorrentId torrentId,
+                                  Peer peer,
+                                  PeerSourceType peerSourceType) {
         super(id, timestamp);
         this.torrentId = Objects.requireNonNull(torrentId);
         this.peer = Objects.requireNonNull(peer);
+        this.peerSourceType = Objects.requireNonNull(peerSourceType);
     }
 
     @Override
@@ -49,9 +55,16 @@ public class PeerDiscoveredEvent extends BaseEvent implements TorrentEvent {
         return peer;
     }
 
+    /**
+     * @since 1.7
+     */
+    public PeerSourceType getPeerSourceType() {
+        return peerSourceType;
+    }
+
     @Override
     public String toString() {
         return "[" + this.getClass().getSimpleName() + "] id {" + getId() + "}, timestamp {" + getTimestamp() +
-                "}, torrent {" + torrentId + "}, peer {" + peer + "}";
+                "}, torrent {" + torrentId + "}, peer {" + peer + "}, peerSourceType {" + peerSourceType + "}";
     }
 }

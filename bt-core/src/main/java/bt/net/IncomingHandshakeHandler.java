@@ -54,6 +54,7 @@ class IncomingHandshakeHandler implements ConnectionHandler {
 
     @Override
     public boolean handleConnection(PeerConnection connection) {
+        assert connection.isIncoming();
         Peer peer = connection.getRemotePeer();
         Message firstMessage = null;
         try {
@@ -65,41 +66,58 @@ class IncomingHandshakeHandler implements ConnectionHandler {
             }
         }
 
-        if (firstMessage != null) {
-            if (Handshake.class.equals(firstMessage.getClass())) {
-
-                Handshake peerHandshake = (Handshake) firstMessage;
-                TorrentId torrentId = peerHandshake.getTorrentId();
-                Optional<TorrentDescriptor> descriptorOptional = torrentRegistry.getDescriptor(torrentId);
-                // it's OK if descriptor is not present -- torrent might be being fetched at the time
-                if (torrentRegistry.getTorrentIds().contains(torrentId)
-                        && (!descriptorOptional.isPresent() || descriptorOptional.get().isActive())) {
-
-                    Handshake handshake = handshakeFactory.createHandshake(torrentId);
-                    handshakeHandlers.forEach(handler ->
-                            handler.processOutgoingHandshake(handshake));
-
-                    try {
-                        connection.postMessage(handshake);
-                    } catch (IOException e) {
-                        if (LOGGER.isDebugEnabled()) {
-                            LOGGER.debug("Failed to send handshake to peer: {}. Reason: {} ({})",
-                                    peer, e.getClass().getName(), e.getMessage());
-                        }
-                        return false;
-                    }
-                    connection.setTorrentId(torrentId);
-
-                    handshakeHandlers.forEach(handler ->
-                            handler.processIncomingHandshake(new WriteOnlyPeerConnection(connection), peerHandshake));
-
-                    return true;
-                }
-            } else {
-                LOGGER.warn("Received message of unexpected type '{}' instead of handshake from peer: {}",
-                        firstMessage.getClass(), peer);
-            }
+        if (firstMessage == null) {
+            return false;
         }
-        return false;
+
+        if (!Handshake.class.equals(firstMessage.getClass())) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(
+                        "Received message of unexpected type '{}' instead of handshake from peer: {}",
+                        firstMessage.getClass(),
+                        peer
+                );
+            }
+            return false;
+        }
+
+        Handshake peerHandshake = (Handshake) firstMessage;
+        TorrentId torrentId = peerHandshake.getTorrentId();
+        if (!torrentRegistry.getTorrentIds().contains(torrentId)) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Received unregistered torrentId from peer: '{}'. TorrentId: '{}'.", peer, torrentId);
+            }
+            return false;
+        }
+
+        Optional<TorrentDescriptor> descriptorOptional = torrentRegistry.getDescriptor(torrentId);
+        // it's OK if descriptor is not present -- torrent might be being fetched at the time
+        if (descriptorOptional.isPresent() && !descriptorOptional.get().isActive()) {
+            return false;
+        }
+
+        Handshake handshake = handshakeFactory.createHandshake(torrentId);
+        handshakeHandlers.forEach(handler -> handler.processOutgoingHandshake(handshake));
+
+        try {
+            connection.postMessage(handshake);
+        } catch (IOException e) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(
+                        "Failed to send handshake to peer: {}. Reason: {} ({})",
+                        peer,
+                        e.getClass().getName(),
+                        e.getMessage()
+                );
+            }
+            return false;
+        }
+
+        connection.setTorrentId(torrentId);
+
+        handshakeHandlers.forEach(handler -> //br
+                handler.processIncomingHandshake(new WriteOnlyPeerConnection(connection), peerHandshake));
+
+        return true;
     }
 }

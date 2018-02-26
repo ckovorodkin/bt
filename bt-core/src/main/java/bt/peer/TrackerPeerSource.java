@@ -19,6 +19,7 @@ package bt.peer;
 import bt.BtException;
 import bt.metainfo.TorrentId;
 import bt.net.Peer;
+import bt.event.PeerSourceType;
 import bt.tracker.Tracker;
 import bt.tracker.TrackerResponse;
 import org.slf4j.Logger;
@@ -40,7 +41,7 @@ class TrackerPeerSource extends ScheduledPeerSource {
     private volatile Duration trackerPreferredInterval;
 
     TrackerPeerSource(ExecutorService executor, Tracker tracker, TorrentId torrentId, Duration trackerQueryInterval) {
-        super(executor);
+        super(PeerSourceType.TRACKER, executor);
         this.tracker = tracker;
         this.torrentId = torrentId;
         this.trackerQueryInterval = trackerQueryInterval;

@@ -17,6 +17,7 @@
 package bt.net;
 
 import bt.CountingThreadFactory;
+import bt.event.EventSink;
 import bt.logging.MDCWrapper;
 import bt.metainfo.TorrentId;
 import bt.runtime.Config;
@@ -29,7 +30,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -40,22 +40,31 @@ public class ConnectionSource implements IConnectionSource {
     private final IPeerConnectionFactory connectionFactory;
     private final IPeerConnectionPool connectionPool;
     private final ExecutorService connectionExecutor;
+    private EventSink eventSink;
+/*
     private final Config config;
+*/
 
     private final Map<Peer, CompletableFuture<ConnectionResult>> pendingConnections;
+/*
     // TODO: weak map
     private final ConcurrentMap<Peer, Long> unreachablePeers;
+*/
 
     @Inject
     public ConnectionSource(Set<PeerConnectionAcceptor> connectionAcceptors,
                             IPeerConnectionFactory connectionFactory,
                             IPeerConnectionPool connectionPool,
                             IRuntimeLifecycleBinder lifecycleBinder,
+                            EventSink eventSink,
                             Config config) {
 
         this.connectionFactory = connectionFactory;
         this.connectionPool = connectionPool;
+        this.eventSink = eventSink;
+/*
         this.config = config;
+*/
 
         this.connectionExecutor = Executors.newFixedThreadPool(
                 config.getMaxPendingConnectionRequests(),
@@ -63,7 +72,9 @@ public class ConnectionSource implements IConnectionSource {
         lifecycleBinder.onShutdown("Shutdown connection workers", connectionExecutor::shutdownNow);
 
         this.pendingConnections = new ConcurrentHashMap<>();
+/*
         this.unreachablePeers = new ConcurrentHashMap<>();
+*/
 
         IncomingConnectionListener incomingListener =
                 new IncomingConnectionListener(connectionAcceptors, connectionExecutor, connectionPool, config);
@@ -92,6 +103,7 @@ public class ConnectionSource implements IConnectionSource {
             return connection;
         }
 
+/*
         Long bannedAt = unreachablePeers.get(peer);
         if (bannedAt != null) {
             if (System.currentTimeMillis() - bannedAt >= config.getUnreachablePeerBanDuration().toMillis()) {
@@ -104,15 +116,18 @@ public class ConnectionSource implements IConnectionSource {
                     LOGGER.debug("Will not attempt to establish connection to peer: {}. " +
                             "Reason: peer is unreachable. Torrent: {}", peer, torrentId);
                 }
+                eventSink.firePeerUnreachable(torrentId, peer);
                 return CompletableFuture.completedFuture(ConnectionResult.failure("Peer is unreachable"));
             }
         }
+*/
 
         if (!connectionPool.mightAddOutgoingConnection(torrentId, peer.getInetSocketAddress())) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("Will not attempt to establish connection to peer: {}. " +
                         "Reason: connections limit exceeded. Torrent: {}", peer, torrentId);
             }
+            eventSink.firePeerUnreachable(torrentId, peer);
             return CompletableFuture.completedFuture(ConnectionResult.failure("Connections limit exceeded"));
         }
 
@@ -144,19 +159,26 @@ public class ConnectionSource implements IConnectionSource {
                         pendingConnections.remove(peer);
                     }
                 }
-            }), connectionExecutor).whenComplete((acquiredConnection, throwable) -> {
-                if (acquiredConnection == null || throwable != null) {
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("Peer is unreachable: {}. Will prevent further attempts to establish connection.", peer);
-                    }
-                    unreachablePeers.putIfAbsent(peer, System.currentTimeMillis());
-                }
-                if (throwable != null) {
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("Failed to establish outgoing connection to peer: " + peer, throwable);
-                    }
-                }
-            });
+            }), connectionExecutor)
+                    .whenComplete((acquiredConnection, throwable) -> new MDCWrapper().putRemoteAddress(peer).run(() -> {
+                        if (throwable != null) {
+                            if (LOGGER.isDebugEnabled()) {
+                                LOGGER.debug("Failed to establish outgoing connection to peer: " + peer, throwable);
+                            }
+                        }
+                        if (throwable != null || acquiredConnection == null || !acquiredConnection.isSuccess()) {
+                            if (LOGGER.isDebugEnabled()) {
+/*
+                                LOGGER.debug("Peer is unreachable: {}. Will prevent further attempts to establish connection.", peer);
+*/
+                                LOGGER.debug("Peer is unreachable: {}", peer);
+                            }
+/*
+                            unreachablePeers.putIfAbsent(peer, System.currentTimeMillis());
+*/
+                            eventSink.firePeerUnreachable(torrentId, peer);
+                        }
+                    }));
 
             pendingConnections.put(peer, connection);
             return connection;

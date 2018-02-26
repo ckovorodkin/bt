@@ -33,7 +33,7 @@ public class Config {
     private int acceptorPort;
     private Duration peerDiscoveryInterval;
     private Duration peerHandshakeTimeout;
-    private Duration peerConnectionRetryInterval;
+    private Interval peerConnectionRetryInterval;
     private int peerConnectionRetryCount;
     private Duration peerConnectionTimeout;
     private Duration peerConnectionInactivityThreshold;
@@ -66,8 +66,7 @@ public class Config {
         this.acceptorAddress = NetworkUtil.getInetAddressFromNetworkInterfaces();
         this.acceptorPort = 6891;
         this.peerDiscoveryInterval = Duration.ofSeconds(5);
-        this.peerConnectionRetryInterval = Duration.ofMinutes(5);
-        this.peerConnectionRetryCount = 3;
+        this.peerConnectionRetryInterval = new Interval(Duration.ofSeconds(5), Duration.ofMinutes(30) , 2.0, 0.15);
         this.peerConnectionTimeout = Duration.ofSeconds(30);
         this.peerHandshakeTimeout = Duration.ofSeconds(30);
         this.peerConnectionInactivityThreshold = Duration.ofMinutes(3);
@@ -80,9 +79,9 @@ public class Config {
         this.shutdownHookTimeout = Duration.ofSeconds(30);
         this.numOfHashingThreads = 1; // do not parallelize by default
         this.maxConcurrentlyActivePeerConnectionsPerTorrent = 20;
-        this.maxPieceReceivingTime = Duration.ofSeconds(10);
+        this.maxPieceReceivingTime = Duration.ofSeconds(60);
         this.maxMessageProcessingInterval = Duration.ofMillis(100);
-        this.unreachablePeerBanDuration = Duration.ofMinutes(30);
+        this.unreachablePeerBanDuration = Duration.ofSeconds(30);
         this.maxPendingConnectionRequests = 50;
         this.timeoutedAssignmentPeerBanDuration = Duration.ofMinutes(1);
         this.encryptionPolicy = EncryptionPolicy.PREFER_PLAINTEXT;
@@ -192,14 +191,14 @@ public class Config {
      * @param peerConnectionRetryInterval Interval at which attempts to connect to a peer will be performed
      * @since 1.0
      */
-    public void setPeerConnectionRetryInterval(Duration peerConnectionRetryInterval) {
+    public void setPeerConnectionRetryInterval(Interval peerConnectionRetryInterval) {
         this.peerConnectionRetryInterval = peerConnectionRetryInterval;
     }
 
     /**
      * @since 1.0
      */
-    public Duration getPeerConnectionRetryInterval() {
+    public Interval getPeerConnectionRetryInterval() {
         return peerConnectionRetryInterval;
     }
 

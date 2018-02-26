@@ -16,6 +16,7 @@
 
 package bt.peer;
 
+import bt.event.PeerSourceType;
 import bt.metainfo.TorrentId;
 import bt.net.Peer;
 import bt.tracker.AnnounceKey;
@@ -39,8 +40,15 @@ public interface IPeerRegistry {
      * Add peer for a given torrent and notify all peer consumers.
      *
      * @since 1.3
+     * @deprecated since 1.7
      */
+    @Deprecated
     void addPeer(TorrentId torrentId, Peer peer);
+
+    /**
+     * @since 1.7
+     */
+    void addPeer(TorrentId torrentId, Peer peer, PeerSourceType peerSourceType);
 
     /**
      * Register a new tracker peer source for a given torrent, based on the provided announce key.

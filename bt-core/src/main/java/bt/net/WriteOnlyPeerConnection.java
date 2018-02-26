@@ -29,14 +29,23 @@ class WriteOnlyPeerConnection implements PeerConnection {
         this.delegate = delegate;
     }
 
+    public long getId() {
+        return delegate.getId();
+    }
+
+    @Override
+    public boolean isIncoming() {
+        return delegate.isIncoming();
+    }
+
     @Override
     public Peer getRemotePeer() {
         return delegate.getRemotePeer();
     }
 
     @Override
-    public TorrentId setTorrentId(TorrentId torrentId) {
-        return delegate.setTorrentId(torrentId);
+    public void setTorrentId(TorrentId torrentId) {
+        delegate.setTorrentId(torrentId);
     }
 
     @Override

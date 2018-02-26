@@ -50,6 +50,7 @@ class OutgoingHandshakeHandler implements ConnectionHandler {
 
     @Override
     public boolean handleConnection(PeerConnection connection) {
+        assert !connection.isIncoming();
         Peer peer = connection.getRemotePeer();
 
         Handshake handshake = handshakeFactory.createHandshake(torrentId);
@@ -74,23 +75,41 @@ class OutgoingHandshakeHandler implements ConnectionHandler {
                         peer, e.getClass().getName(), e.getMessage());
             }
         }
-        if (firstMessage != null) {
-            if (Handshake.class.equals(firstMessage.getClass())) {
-                Handshake peerHandshake = (Handshake) firstMessage;
-                TorrentId incomingTorrentId = peerHandshake.getTorrentId();
-                if (torrentId.equals(incomingTorrentId)) {
-                    connection.setTorrentId(torrentId);
 
-                    handshakeHandlers.forEach(handler ->
-                            handler.processIncomingHandshake(new WriteOnlyPeerConnection(connection), peerHandshake));
-
-                    return true;
-                }
-            } else {
-                LOGGER.warn("Received message of unexpected type '{}' instead of handshake from peer: {}",
-                        firstMessage.getClass(), peer);
-            }
+        if (firstMessage == null) {
+            return false;
         }
-        return false;
+
+        if (!Handshake.class.equals(firstMessage.getClass())) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(
+                        "Received message of unexpected type '{}' instead of handshake from peer: {}",
+                        firstMessage.getClass(),
+                        peer
+                );
+            }
+            return false;
+        }
+
+        Handshake peerHandshake = (Handshake) firstMessage;
+        TorrentId incomingTorrentId = peerHandshake.getTorrentId();
+        if (!torrentId.equals(incomingTorrentId)) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(
+                        "Received invalid torrentId from peer {}. Expected '{}', actual '{}'.",
+                        peer,
+                        torrentId,
+                        incomingTorrentId
+                );
+            }
+            return false;
+        }
+
+        assert torrentId.equals(connection.getTorrentId());
+
+        handshakeHandlers.forEach(handler -> //br
+                handler.processIncomingHandshake(new WriteOnlyPeerConnection(connection), peerHandshake));
+
+        return true;
     }
 }

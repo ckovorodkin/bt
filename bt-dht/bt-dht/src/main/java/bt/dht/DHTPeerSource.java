@@ -18,6 +18,7 @@ package bt.dht;
 
 import bt.metainfo.TorrentId;
 import bt.net.Peer;
+import bt.event.PeerSourceType;
 import bt.peer.ScheduledPeerSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +44,7 @@ public class DHTPeerSource extends ScheduledPeerSource {
     private volatile long lastRefreshed;
 
     DHTPeerSource(TorrentId torrentId, DHTService dhtService, ExecutorService executor) {
-        super(executor);
+        super(PeerSourceType.DHT, executor);
         this.torrentId = torrentId;
         this.dhtService = dhtService;
         this.queryInterval = Duration.ofMinutes(5);

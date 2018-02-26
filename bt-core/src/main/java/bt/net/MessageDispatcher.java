@@ -110,7 +110,7 @@ public class MessageDispatcher implements IMessageDispatcher {
                                     for (; ; ) {
                                         try {
                                             message = connection.readMessageNow();
-                                        } catch (Exception e) {
+                                        } catch (Exception | AssertionError e) {
                                             LOGGER.error("Error when reading message from peer connection: " + peer, e);
                                             continue outer;
                                         }
@@ -120,7 +120,7 @@ public class MessageDispatcher implements IMessageDispatcher {
                                             for (Consumer<Message> consumer : consumers) {
                                                 try {
                                                     consumer.accept(message);
-                                                } catch (Exception e) {
+                                                } catch (Exception | AssertionError e) {
                                                     LOGGER.warn("Error in message consumer", e);
                                                 }
                                             }
@@ -151,7 +151,7 @@ public class MessageDispatcher implements IMessageDispatcher {
                                         Message message = null;
                                         try {
                                             message = messageSupplier.get();
-                                        } catch (Exception e) {
+                                        } catch (Exception | AssertionError e) {
                                             LOGGER.warn("Error in message supplier", e);
                                         }
 
@@ -159,7 +159,7 @@ public class MessageDispatcher implements IMessageDispatcher {
                                             loopControl.incrementProcessed();
                                             try {
                                                 connection.postMessage(message);
-                                            } catch (Exception e) {
+                                            } catch (Exception | AssertionError e) {
                                                 LOGGER.error("Error when writing message", e);
                                             }
                                         }

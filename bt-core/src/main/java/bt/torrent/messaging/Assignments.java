@@ -63,7 +63,7 @@ public class Assignments {
     }
 
     public double getRatio() {
-        return pieceStatistics.getRatio();
+        return pieceStatistics.getRatio(localBitfield);
     }
 
     public Assignment get(Peer peer) {

@@ -49,29 +49,38 @@ public class EventBus implements EventSink, EventSource {
     }
 
     @Override
-    public synchronized void firePeerDiscovered(TorrentId torrentId, Peer peer) {
+    public synchronized void firePeerDiscovered(TorrentId torrentId, Peer peer, PeerSourceType peerSourceType) {
         long timestamp = System.currentTimeMillis();
         if (hasListeners(PeerDiscoveredEvent.class)) {
             long id = nextId();
-            fireEvent(new PeerDiscoveredEvent(id, timestamp, torrentId, peer));
+            fireEvent(new PeerDiscoveredEvent(id, timestamp, torrentId, peer, peerSourceType));
         }
     }
 
     @Override
-    public synchronized void firePeerConnected(TorrentId torrentId, Peer peer) {
+    public synchronized void firePeerUnreachable(TorrentId torrentId, Peer peer) {
+        long timestamp = System.currentTimeMillis();
+        if (hasListeners(PeerUnreachableEvent.class)) {
+            long id = nextId();
+            fireEvent(new PeerUnreachableEvent(id, timestamp, torrentId, peer));
+        }
+    }
+
+    @Override
+    public synchronized void firePeerConnected(TorrentId torrentId, Peer peer, boolean incoming, long connectionId) {
         long timestamp = System.currentTimeMillis();
         if (hasListeners(PeerConnectedEvent.class)) {
             long id = nextId();
-            fireEvent(new PeerConnectedEvent(id, timestamp, torrentId, peer));
+            fireEvent(new PeerConnectedEvent(id, timestamp, torrentId, peer, incoming, connectionId));
         }
     }
 
     @Override
-    public synchronized void firePeerDisconnected(TorrentId torrentId, Peer peer) {
+    public synchronized void firePeerDisconnected(TorrentId torrentId, Peer peer, long connectionId) {
         long timestamp = System.currentTimeMillis();
         if (hasListeners(PeerDisconnectedEvent.class)) {
             long id = nextId();
-            fireEvent(new PeerDisconnectedEvent(id, timestamp, torrentId, peer));
+            fireEvent(new PeerDisconnectedEvent(id, timestamp, torrentId, peer, connectionId));
         }
     }
 
@@ -134,6 +143,12 @@ public class EventBus implements EventSink, EventSource {
     @Override
     public EventSource onPeerDiscovered(Consumer<PeerDiscoveredEvent> listener) {
         addListener(PeerDiscoveredEvent.class, listener);
+        return this;
+    }
+
+    @Override
+    public EventSource onPeerUnreachable(Consumer<PeerUnreachableEvent> listener) {
+        addListener(PeerUnreachableEvent.class, listener);
         return this;
     }
 

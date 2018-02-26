@@ -33,21 +33,28 @@ public interface EventSink {
      *
      * @since 1.5
      */
-    void firePeerDiscovered(TorrentId torrentId, Peer peer);
+    void firePeerDiscovered(TorrentId torrentId, Peer peer, PeerSourceType peerSourceType);
+
+    /**
+     * Generate event, that a new outgoing connection with some peer can't be established.
+     *
+     * @since 1.7
+     */
+    void firePeerUnreachable(TorrentId torrentId, Peer peer);
 
     /**
      * Generate event, that a new connection with some peer has been established.
      *
      * @since 1.5
      */
-    void firePeerConnected(TorrentId torrentId, Peer peer);
+    void firePeerConnected(TorrentId torrentId, Peer peer, boolean incoming, long connectionId);
 
     /**
      * Generate event, that a connection with some peer has been terminated.
      *
      * @since 1.5
      */
-    void firePeerDisconnected(TorrentId torrentId, Peer peer);
+    void firePeerDisconnected(TorrentId torrentId, Peer peer, long connectionId);
 
     /**
      * Generate event, that local information about some peer's data has been updated.

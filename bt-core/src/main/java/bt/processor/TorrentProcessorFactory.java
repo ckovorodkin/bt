@@ -23,6 +23,7 @@ import bt.module.ClientExecutor;
 import bt.module.MessagingAgents;
 import bt.net.IConnectionSource;
 import bt.net.IMessageDispatcher;
+import bt.net.IPeerConnectionPool;
 import bt.peer.IPeerRegistry;
 import bt.processor.magnet.FetchMetadataStage;
 import bt.processor.magnet.InitializeMagnetTorrentProcessingStage;
@@ -36,6 +37,7 @@ import bt.processor.torrent.SeedStage;
 import bt.processor.torrent.TorrentContext;
 import bt.processor.torrent.TorrentContextFinalizer;
 import bt.runtime.Config;
+import bt.service.IRuntimeLifecycleBinder;
 import bt.statistic.TransferAmountStatistic;
 import bt.torrent.TorrentRegistry;
 import bt.torrent.data.IDataWorkerFactory;
@@ -56,11 +58,13 @@ public class TorrentProcessorFactory implements ProcessorFactory {
     private ExecutorService executor;
     private IPeerRegistry peerRegistry;
     private IConnectionSource connectionSource;
+    private IPeerConnectionPool peerConnectionPool;
     private IMessageDispatcher messageDispatcher;
     private Set<Object> messagingAgents;
     private IMetadataService metadataService;
     private EventSource eventSource;
     private EventSink eventSink;
+    private IRuntimeLifecycleBinder lifecycleBinder;
     private Config config;
 
     private final Map<Class<?>, Processor<?>> processors;
@@ -73,11 +77,13 @@ public class TorrentProcessorFactory implements ProcessorFactory {
                                    @ClientExecutor ExecutorService executor,
                                    IPeerRegistry peerRegistry,
                                    IConnectionSource connectionSource,
+                                   IPeerConnectionPool peerConnectionPool,
                                    IMessageDispatcher messageDispatcher,
                                    @MessagingAgents Set<Object> messagingAgents,
                                    IMetadataService metadataService,
                                    EventSource eventSource,
                                    EventSink eventSink,
+                                   IRuntimeLifecycleBinder lifecycleBinder,
                                    Config config) {
         this.transferAmountStatistic = transferAmountStatistic;
         this.torrentRegistry = torrentRegistry;
@@ -86,11 +92,13 @@ public class TorrentProcessorFactory implements ProcessorFactory {
         this.executor = executor;
         this.peerRegistry = peerRegistry;
         this.connectionSource = connectionSource;
+        this.peerConnectionPool = peerConnectionPool;
         this.messageDispatcher = messageDispatcher;
         this.messagingAgents = messagingAgents;
         this.metadataService = metadataService;
         this.eventSource = eventSource;
         this.eventSink = eventSink;
+        this.lifecycleBinder = lifecycleBinder;
         this.config = config;
 
         this.processors = processors();
@@ -111,12 +119,21 @@ public class TorrentProcessorFactory implements ProcessorFactory {
 
         ProcessingStage<TorrentContext> stage3 = new ProcessTorrentStage<>(stage4, torrentRegistry, trackerService);
 
-        ProcessingStage<TorrentContext> stage2 = new InitializeTorrentProcessingStage<>(stage3, torrentRegistry,
-                dataWorkerFactory, eventSink, config);
+        ProcessingStage<TorrentContext> stage2 = new InitializeTorrentProcessingStage<>(
+                stage3,
+                transferAmountStatistic,
+                connectionSource,
+                peerConnectionPool,
+                messageDispatcher,
+                torrentRegistry,
+                dataWorkerFactory,
+                eventSource,
+                eventSink,
+                lifecycleBinder,
+                config
+        );
 
-        ProcessingStage<TorrentContext> stage1 =
-                new CreateSessionStage<>(stage2, transferAmountStatistic, torrentRegistry, eventSource,
-                connectionSource, messageDispatcher, messagingAgents, config);
+        ProcessingStage<TorrentContext> stage1 = new CreateSessionStage<>(stage2, torrentRegistry, messagingAgents);
 
         ProcessingStage<TorrentContext> stage0 = new FetchTorrentStage(stage1);
 
@@ -129,15 +146,24 @@ public class TorrentProcessorFactory implements ProcessorFactory {
 
         ProcessingStage<MagnetContext> stage3 = new ProcessMagnetTorrentStage(stage4, torrentRegistry, trackerService);
 
-        ProcessingStage<MagnetContext> stage2 = new InitializeMagnetTorrentProcessingStage(stage3, torrentRegistry,
-                dataWorkerFactory, eventSink, config);
+        ProcessingStage<MagnetContext> stage2 = new InitializeMagnetTorrentProcessingStage(
+                stage3,
+                transferAmountStatistic,
+                connectionSource,
+                peerConnectionPool,
+                messageDispatcher,
+                torrentRegistry,
+                dataWorkerFactory,
+                eventSource,
+                eventSink,
+                lifecycleBinder,
+                config
+        );
 
         ProcessingStage<MagnetContext> stage1 = new FetchMetadataStage(stage2, metadataService, torrentRegistry,
                 trackerService, peerRegistry, config);
 
-        ProcessingStage<MagnetContext> stage0 =
-                new CreateSessionStage<>(stage1, transferAmountStatistic, torrentRegistry, eventSource,
-                connectionSource, messageDispatcher, messagingAgents, config);
+        ProcessingStage<MagnetContext> stage0 = new CreateSessionStage<>(stage1, torrentRegistry, messagingAgents);
 
         return new ChainProcessor<>(stage0, executor, new TorrentContextFinalizer<>(torrentRegistry));
     }
