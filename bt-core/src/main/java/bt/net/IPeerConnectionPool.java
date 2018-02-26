@@ -54,12 +54,12 @@ public interface IPeerConnectionPool {
     int size();
 
     /**
-     * @since 1.7
+     * @since 0.0
      */
     boolean mightAddIncomingConnection(SocketAddress remoteAddress);
 
     /**
-     * @since 1.7
+     * @since 0.0
      */
     boolean mightAddOutgoingConnection(TorrentId torrentId, SocketAddress remoteAddress);
 
@@ -70,7 +70,7 @@ public interface IPeerConnectionPool {
     PeerConnection addConnectionIfAbsent(PeerConnection connection);
 
     /**
-     * @since 1.7
+     * @since 0.0
      */
-    void disconnect(Peer peer);
+    void disconnect(Peer peer, TorrentId torrentId);
 }

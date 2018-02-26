@@ -40,13 +40,13 @@ public interface IPeerRegistry {
      * Add peer for a given torrent and notify all peer consumers.
      *
      * @since 1.3
-     * @deprecated since 1.7
+     * @deprecated since 0.0
      */
     @Deprecated
     void addPeer(TorrentId torrentId, Peer peer);
 
     /**
-     * @since 1.7
+     * @since 0.0
      */
     void addPeer(TorrentId torrentId, Peer peer, PeerSourceType peerSourceType);
 

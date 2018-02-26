@@ -24,7 +24,7 @@ import java.util.Objects;
 /**
  * Indicates, that a new outgoing connection with some peer can't be established.
  *
- * @since 1.7
+ * @since 0.0
  */
 public class PeerUnreachableEvent extends BaseEvent implements TorrentEvent {
 
@@ -43,7 +43,7 @@ public class PeerUnreachableEvent extends BaseEvent implements TorrentEvent {
     }
 
     /**
-     * @since 1.7
+     * @since 0.0
      */
     public Peer getPeer() {
         return peer;

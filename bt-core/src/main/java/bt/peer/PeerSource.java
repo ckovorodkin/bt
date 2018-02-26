@@ -26,7 +26,7 @@ import java.util.Collection;
  */
 public interface PeerSource {
     /**
-     * @since 1.7
+     * @since 0.0
      */
     PeerSourceType getPeerSourceType();
 

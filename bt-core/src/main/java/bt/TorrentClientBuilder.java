@@ -140,7 +140,7 @@ public class TorrentClientBuilder<B extends TorrentClientBuilder> extends BaseCl
     /**
      * Set piece selection strategy
      *
-     * @since 1.7
+     * @since 0.0
      */
     @SuppressWarnings("unchecked")
     public B pieceOrder(PieceOrder  pieceOrder) {
@@ -151,7 +151,7 @@ public class TorrentClientBuilder<B extends TorrentClientBuilder> extends BaseCl
     /**
      * Use sequential piece selection strategy
      *
-     * @since 1.7
+     * @since 0.0
      */
     public B sequentialPieceOrder() {
        return pieceOrder(new  SequentialPieceOrder());
@@ -160,7 +160,7 @@ public class TorrentClientBuilder<B extends TorrentClientBuilder> extends BaseCl
     /**
      * Use rarest first piece selection strategy
      *
-     * @since 1.7
+     * @since 0.0
      */
     public B rarestPieceOrder() {
        return pieceOrder(new RarestPieceOrder());
@@ -169,7 +169,7 @@ public class TorrentClientBuilder<B extends TorrentClientBuilder> extends BaseCl
     /**
      * Use rarest first piece selection strategy
      *
-     * @since 1.7
+     * @since 0.0
      */
     public B randomizedRarestPieceOrder() {
        return pieceOrder(new RandomizedRarestPieceOrder());

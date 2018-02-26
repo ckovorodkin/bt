@@ -97,7 +97,7 @@ public class Bitfield {
      * @return BitSet that describes status of all pieces.
      *         If the n-th bit is set, then the n-th piece
      *         is in {@link PieceStatus#COMPLETE_VERIFIED} status.
-     * @since 1.7
+     * @since 0.0
      */
     public BitSet getPieces() {
         lock.lock();

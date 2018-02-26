@@ -187,7 +187,7 @@ public class Protocols {
 
     /**
      * @param bytes byte array, witch bit order will be changed
-     * @since 1.7
+     * @since 0.0
      */
     public static void reverseBitOrder(byte[] bytes) {
         for (int i = 0; i < bytes.length; ++i) {
@@ -198,7 +198,7 @@ public class Protocols {
     /**
      * @param b byte, that bit order will be changed
      * @return value that represent changed bit order of b
-     * @since 1.7
+     * @since 0.0
      */
     public static byte reverseBitOrder(byte b) {
         if (b == 0 || b == -1) {

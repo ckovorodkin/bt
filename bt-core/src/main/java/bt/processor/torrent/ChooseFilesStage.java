@@ -24,20 +24,14 @@ import bt.processor.ProcessingStage;
 import bt.processor.TerminateOnErrorProcessingStage;
 import bt.processor.listener.ProcessingEvent;
 import bt.runtime.Config;
-import bt.torrent.BitfieldBasedStatistics;
 import bt.torrent.TorrentDescriptor;
 import bt.torrent.TorrentRegistry;
 import bt.torrent.fileselector.SelectionResult;
 import bt.torrent.fileselector.TorrentFileSelector;
-import bt.torrent.messaging.Assignments;
-import bt.torrent.selector.IncompletePiecesValidator;
-import bt.torrent.selector.PieceSelector;
-import bt.torrent.selector.ValidatingSelector;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.stream.IntStream;
 
 public class ChooseFilesStage<C extends TorrentContext> extends TerminateOnErrorProcessingStage<C> {
@@ -76,12 +70,14 @@ public class ChooseFilesStage<C extends TorrentContext> extends TerminateOnError
 
         Bitfield bitfield = descriptor.getDataDescriptor().getBitfield();
         Set<Integer> validPieces = getValidPieces(descriptor.getDataDescriptor(), selectedFiles);
+/*
         PieceSelector selector = createSelector(context.getPieceSelector(), bitfield, validPieces);
         BitfieldBasedStatistics pieceStatistics = context.getPieceStatistics();
         Assignments assignments = new Assignments(bitfield, selector, pieceStatistics, config);
 
         updateSkippedPieces(bitfield, validPieces);
         context.setAssignments(assignments);
+*/
     }
 
     private void updateSkippedPieces(Bitfield bitfield, Set<Integer> validPieces) {
@@ -105,6 +101,7 @@ public class ChooseFilesStage<C extends TorrentContext> extends TerminateOnError
         return validPieces;
     }
 
+/*
     private PieceSelector createSelector(PieceSelector selector,
                                          Bitfield bitfield,
                                          Set<Integer> selectedFilesPieces) {
@@ -114,6 +111,7 @@ public class ChooseFilesStage<C extends TorrentContext> extends TerminateOnError
                 selectedFilesValidator.test(pieceIndex) && incompletePiecesValidator.test(pieceIndex);
         return new ValidatingSelector(validator, selector);
     }
+*/
 
     @Override
     public ProcessingEvent after() {

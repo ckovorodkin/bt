@@ -30,12 +30,12 @@ import java.io.IOException;
 public interface PeerConnection extends Closeable {
 
     /**
-     * @since 1.7
+     * @since 0.0
      */
     long getId();
 
     /**
-     * @since 1.7
+     * @since 0.0
      */
     boolean isIncoming();
 

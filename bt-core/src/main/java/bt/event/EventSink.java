@@ -38,7 +38,7 @@ public interface EventSink {
     /**
      * Generate event, that a new outgoing connection with some peer can't be established.
      *
-     * @since 1.7
+     * @since 0.0
      */
     void firePeerUnreachable(TorrentId torrentId, Peer peer);
 

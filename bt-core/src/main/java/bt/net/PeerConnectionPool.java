@@ -166,10 +166,10 @@ public class PeerConnectionPool implements IPeerConnectionPool {
     }
 
     @Override
-    public void disconnect(Peer peer) {
+    public void disconnect(Peer peer, TorrentId torrentId) {
         cleanerLock.lock();
         try {
-            purgeConnectionWithPeer(peer);
+            connections.get(peer, torrentId).ifPresent(this::purgeConnection);
         } finally {
             cleanerLock.unlock();
         }
@@ -185,18 +185,19 @@ public class PeerConnectionPool implements IPeerConnectionPool {
             cleanerLock.lock();
             try {
                 connections.visitConnections(connection -> {
+                    Peer peer = connection.getRemotePeer();
                     if (connection.isClosed()) {
-                        new MDCWrapper().putRemoteAddress(connection.getRemotePeer()).run(() -> {
+                        new MDCWrapper().putRemoteAddress(peer).run(() -> {
                             if (LOGGER.isDebugEnabled()) {
-                                LOGGER.debug("Removing closed peer connection: {}", connection.getRemotePeer());
+                                LOGGER.debug("Removing closed peer connection: {}", peer);
                             }
                             purgeConnection(connection);
                         });
                     } else if (System.currentTimeMillis() - connection.getLastActive()
                             >= peerConnectionInactivityThreshold.toMillis()) {
-                        new MDCWrapper().putRemoteAddress(connection.getRemotePeer()).run(() -> {
+                        new MDCWrapper().putRemoteAddress(peer).run(() -> {
                             if (LOGGER.isDebugEnabled()) {
-                                LOGGER.debug("Removing inactive peer connection: {}", connection.getRemotePeer());
+                                LOGGER.debug("Removing inactive peer connection: {}", peer);
                             }
                             purgeConnection(connection);
                         });
@@ -278,8 +279,7 @@ class Connections {
 
         PeerConnection existing = connections.putIfAbsent(key, connection);
         if (existing == null) {
-            connectionsByTorrent.computeIfAbsent(torrentId, id -> ConcurrentHashMap.newKeySet())
-                    .add(connection);
+            connectionsByTorrent.computeIfAbsent(torrentId, id -> ConcurrentHashMap.newKeySet()).add(connection);
         }
         return existing;
     }

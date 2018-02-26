@@ -71,12 +71,12 @@ public interface TorrentSessionState {
     /**
      * @return BitSet of pieces, that status is {@link bt.data.Bitfield.PieceStatus#COMPLETE_VERIFIED}
      * @see bt.data.Bitfield.PieceStatus
-     * @since 1.7
+     * @since 0.0
      */
     BitSet getPieces();
 
     /**
-     * @since 1.7
+     * @since 0.0
      */
     double getRatio();
 
@@ -93,7 +93,7 @@ public interface TorrentSessionState {
     long getUploaded();
 
     /**
-     * @since 1.7
+     * @since 0.0
      */
     TransferAmount getTransferAmount(Peer peer);
 
@@ -104,32 +104,32 @@ public interface TorrentSessionState {
     Set<Peer> getConnectedPeers();
 
     /**
-     * @since 1.7
+     * @since 0.0
      */
     Set<Peer> getActivePeers();
 
     /**
-     * @since 1.7
+     * @since 0.0
      */
     Set<Peer> getTimeoutedPeers();
 
     /**
-     * @since 1.7
+     * @since 0.0
      */
     ConnectionState getConnectionState(Peer peer);
 
     /**
-     * @since 1.7
+     * @since 0.0
      */
     Collection<PeerInfoView> getPeerInfos();
 
     /**
-     * @since 1.7
+     * @since 0.0
      */
     Collection<PeerInfoView> getOnlinePeerInfos();
 
     /**
-     * @since 1.7
+     * @since 0.0
      */
     Collection<PeerInfoView> getConnectedPeerInfos();
 }

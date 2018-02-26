@@ -201,14 +201,14 @@ public class PeerManager {
         onlinePeerInfoMap.putIfAbsent(peer, peerInfo);
 
         if (!mightAddConnection()) {
-            peerConnectionPool.disconnect(peer);
+            peerConnectionPool.disconnect(peer, torrentId);
             return;
         }
 
         if (peerInfo.getPeerState() == ACTIVE) {
             final long currentConnectionId = peerInfo.getConnectionId();
             assert currentConnectionId != connectionId;
-            peerConnectionPool.disconnect(peer);                        // may cause asynchronous onPeerDisconnected()
+            peerConnectionPool.disconnect(peer, torrentId);             // may cause asynchronous onPeerDisconnected()
             onPeerDisconnected(timestamp, peer, currentConnectionId);   // force synchronous onPeerDisconnected()
         }
 

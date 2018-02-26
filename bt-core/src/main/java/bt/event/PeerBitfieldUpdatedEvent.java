@@ -62,7 +62,7 @@ public class PeerBitfieldUpdatedEvent extends BaseEvent implements TorrentEvent 
     }
 
     /**
-     * @since 1.7
+     * @since 0.0
      */
     public int getPiecesTotal() {
         return piecesTotal;

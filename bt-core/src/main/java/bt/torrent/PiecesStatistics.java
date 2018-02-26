@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Acts as a storage for peers' bitfields and provides aggregate piece statistics.
  * This class is thread-safe.
  *
- * @since 1.7
+ * @since 0.0
  */
 public class PiecesStatistics {
 
@@ -39,7 +39,7 @@ public class PiecesStatistics {
     /**
      * Create statistics, based on the local peer's bitfield.
      *
-     * @since 1.7
+     * @since 0.0
      */
     public PiecesStatistics(int piecesTotal) {
         this.peerPiecesMap = new ConcurrentHashMap<>();
@@ -49,7 +49,7 @@ public class PiecesStatistics {
     /**
      * Add peer's bitfield.
      *
-     * @since 1.7
+     * @since 0.0
      */
     public void addPieces(Peer peer, BitSet pieces) {
         addPieces0(peer, copyOf(pieces));
@@ -69,7 +69,7 @@ public class PiecesStatistics {
     /**
      * Remove peer's bitfield.
      *
-     * @since 1.7
+     * @since 0.0
      */
     public void removePieces(Peer peer) {
         if (!peerPiecesMap.containsKey(peer)) {
@@ -102,7 +102,7 @@ public class PiecesStatistics {
     /**
      * Update peer's bitfield by indicating that the peer has a given piece.
      *
-     * @since 1.7
+     * @since 0.0
      */
     public void addPiece(Peer peer, int pieceIndex) {
         validateLength(pieceIndex);
@@ -123,7 +123,7 @@ public class PiecesStatistics {
     /**
      * Get peer's bitfield, if present.
      *
-     * @since 1.7
+     * @since 0.0
      */
     public Optional<BitSet> getPieces(Peer peer) {
         return Optional.ofNullable(peerPiecesMap.get(peer)).flatMap(pieces -> {

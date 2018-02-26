@@ -36,7 +36,7 @@ class BlockKey {
     /**
      * Create a unique key for a block request, cancel request or received piece.
      *
-     * @since 1.7
+     * @since 0.0
      */
     public static BlockKey buildBlockKey(Piece piece) {
         return buildBlockKey(piece.getPieceIndex(), piece.getOffset(), piece.getBlock().length);

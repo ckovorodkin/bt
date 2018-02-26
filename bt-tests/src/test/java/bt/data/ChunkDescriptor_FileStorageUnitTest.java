@@ -20,7 +20,6 @@ import bt.TestUtil;
 import bt.data.digest.Digester;
 import bt.data.digest.SHA1Digester;
 import bt.metainfo.Torrent;
-import bt.protocol.BitOrder;
 import bt.service.CryptoUtil;
 import org.junit.Before;
 import org.junit.Rule;
@@ -149,8 +148,8 @@ public class ChunkDescriptor_FileStorageUnitTest {
         assertEquals(0, descriptor.getBitfield().getPiecesRemaining());
         assertEquals(0, descriptor.getBitfield().getPiecesTotal());
         assertEquals(0, descriptor.getBitfield().getPiecesComplete());
-        assertEquals(0, descriptor.getBitfield().getBitmask().size());
-        assertEquals(0, descriptor.getBitfield().toByteArray(BitOrder.LITTLE_ENDIAN).length);
+        assertEquals(0, descriptor.getBitfield().getBitmask().length);
+        assertEquals(0, descriptor.getBitfield().getPieces().length());
 
         assertFileHasContents(new File(storage.getRoot(), fileName), new byte[0]);
     }
@@ -388,8 +387,8 @@ public class ChunkDescriptor_FileStorageUnitTest {
         assertEquals(0, descriptor.getBitfield().getPiecesRemaining());
         assertEquals(0, descriptor.getBitfield().getPiecesTotal());
         assertEquals(0, descriptor.getBitfield().getPiecesComplete());
-        assertEquals(0, descriptor.getBitfield().getBitmask().size());
-        assertEquals(0, descriptor.getBitfield().toByteArray(BitOrder.LITTLE_ENDIAN).length);
+        assertEquals(0, descriptor.getBitfield().getBitmask().length);
+        assertEquals(0, descriptor.getBitfield().getPieces().length());
 
         assertFileHasContents(new File(torrentDirectory, fileName1), new byte[0]);
         assertFileHasContents(new File(torrentDirectory, fileName2), new byte[0]);

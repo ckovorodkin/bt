@@ -59,14 +59,14 @@ public class PeerConnectedEvent extends BaseEvent implements TorrentEvent {
     }
 
     /**
-     * @since 1.7
+     * @since 0.0
      */
     public boolean isIncoming() {
         return incoming;
     }
 
     /**
-     * @since 1.7
+     * @since 0.0
      */
     public long getConnectionId() {
         return connectionId;
