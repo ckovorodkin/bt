@@ -1,11 +1,15 @@
 <h1 align="center">
     <a href="http://atomashpolskiy.github.io/bt/">Bt</a>
+    <a href="https://twitter.com/intent/tweet?text=Bt%3A%20A%20Java%208%20BitTorrent%20library%20with%20DHT%2C%20magnet%20links%2C%20encryption%20and%20more&url=https://github.com/atomashpolskiy/bt&via=atomashpolskiy&hashtags=java,bittorrent,dht,library">
+        <img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social&logo=twitter"
+            alt="Tweet">
+    </a>
 </h1>
 
 <p align="center"><strong>
 <sup>
 A full-featured BitTorrent implementation in Java 8
-<br/><a href="http://bittorrent.org/beps/bep_0011.html">peer exchange</a> | <a href="http://bittorrent.org/beps/bep_0009.html">magnet links</a> | <a href="http://bittorrent.org/beps/bep_0005.html">DHT</a> | <a href="http://wiki.vuze.com/w/Message_Stream_Encryption">encryption</a> | <a href="http://bittorrent.org/beps/bep_0014.html">LSD</a> | <a href="http://bittorrent.org/beps/bep_0027.html">private trackers</a> | <a href="http://bittorrent.org/beps/bep_0010.html">extended protocol</a>
+<br/><a href="http://bittorrent.org/beps/bep_0011.html">peer exchange</a> | <a href="http://bittorrent.org/beps/bep_0009.html">magnet links</a> | <a href="http://bittorrent.org/beps/bep_0005.html">DHT</a> | <a href="http://wiki.vuze.com/w/Message_Stream_Encryption">encryption</a> | <a href="http://bittorrent.org/beps/bep_0014.html">LSD</a> | <a href="http://bittorrent.org/beps/bep_0027.html">private trackers</a> | <a href="http://bittorrent.org/beps/bep_0010.html">extended protocol</a> | <a href="#partial-downloads">partial downloads</a>
 </sup>
 </strong></p>
 
@@ -37,10 +41,6 @@ A full-featured BitTorrent implementation in Java 8
     <a href="https://codecov.io/gh/atomashpolskiy/bt">
         <img src="https://img.shields.io/codecov/c/github/atomashpolskiy/bt/master.svg"
              alt="Coverage">
-    </a>
-    <a href="https://www.codetriage.com/atomashpolskiy/bt">
-        <img src="https://www.codetriage.com/atomashpolskiy/bt/badges/users.svg"
-             alt="Help Contribute to Open Source">
     </a>
 </p>
 
@@ -157,6 +157,10 @@ To allow you test the changes that you've made to the core, **Bt** ships with a 
 ### Parallel downloads
 
 **Bt** has out-of-the-box support for multiple simultaneous torrent sessions with minimal system overhead. 1% CPU and 32M of RAM should be enough for everyone!
+
+### Partial downloads
+
+**Bt** has an API for selecting only a subset of torrent files to download. See the `bt.TorrentClientBuilder.fileSelector(TorrentFileSelector)` client builder method. File selection works for both `.torrent` file-based and magnet link downloads.
 
 ### Java 8 CompletableFuture
 

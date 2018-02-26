@@ -1,5 +1,25 @@
 # UPGRADE INSTRUCTIONS
 
+## 1.7
+
+* `bt.net.IPeerConnectionPool.getConnection` now requires two parameters to uniquely identify the connection: `Peer` and `TorrentId`
+* `bt.net.IMessageDispatcher.addMessageConsumer` and `bt.net.IMessageDispatcher.addMessageSupplier` now require an additional parameter: `TorrentId`
+* `bt.data.Bitfield.getBitmask` has been renamed to `bt.data.Bitfield.toByteArray`. To get the same value, as was returned by the previous version of this method, use the following invocation:
+
+```java
+byte[] bitmask = bitfield.toByteArray(bt.protocol.BitOrder.LITTLE_ENDIAN);
+```
+
+* `bt.protocol.Protocols.setBit` and `bt.protocol.Protocols.getBit` now require an additional parameter indicating the order of bits in a byte. To get the same values, as was returned by the previous versions of these methods, use the following invocations:
+
+```java
+Protocols.setBit(bytes, bt.protocol.BitOrder.LITTLE_ENDIAN, i);
+int bit = Protocols.getBit(bytes, bt.protocol.BitOrder.LITTLE_ENDIAN, i);
+```
+
+* Semantics of `bt.data.Bitfield.getPiecesRemaining` have been changed. Previously it returned the number of incomplete and unverified pieces (i.e. `getPiecesTotal() - getPiecesComplete()`). Now it returns the number of incomplete and unverified pieces that should NOT be skipped (i.e. the corresponding files are expected to be downloaded). To get the old behavior, you may use `getPiecesIncomplete()`.
+* Semantics of `bt.torrent.TorrentSessionState.getPiecesRemaining` have been changed according to the `bt.data.Bitfield.getPiecesRemaining` changes described above. To get the old behavior, you may use `getPiecesIncomplete()`.
+
 ## 1.5
 
 * `bt.BaseClientBuilder#runtime(BtRuntime)` is now protected instead of public. Use a factory method `bt.Bt#client(BtRuntime)` to attach the newly created client to a shared runtime.

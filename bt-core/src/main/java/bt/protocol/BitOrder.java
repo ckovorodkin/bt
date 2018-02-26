@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016—2017 Andrei Tomashpolskiy and individual contributors.
+ * Copyright (c) 2016—2018 Andrei Tomashpolskiy and individual contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,33 +14,20 @@
  * limitations under the License.
  */
 
-package bt.processor.listener;
+package bt.protocol;
 
 /**
- * Significant milestone in torrent processing.
- *
- * @since 1.5
+ * @since 1.7
  */
-public enum ProcessingEvent {
+public enum BitOrder {
 
     /**
-     * Torrent metadata has been fetched.
-     *
-     * @since 1.5
-     */
-    TORRENT_FETCHED,
-
-    /**
-     * Files to download have been chosen.
-     *
      * @since 1.7
      */
-    FILES_CHOSEN,
+    BIG_ENDIAN,
 
     /**
-     * All data has been downloaded.
-     *
-     * @since 1.5
+     * @since 1.7
      */
-    DOWNLOAD_COMPLETE
+    LITTLE_ENDIAN
 }

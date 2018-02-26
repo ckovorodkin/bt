@@ -41,20 +41,21 @@ public class Bitfield {
     }
 
     /**
-     * BitSet, where n-th bit
-     * indicates the availability of n-th piece.
+     * BitSet indicating availability of pieces.
+     * If the n-th bit is set, then the n-th piece is complete and verified.
      */
     private final BitSet pieces;
+
+    /**
+     * Bitmask indicating pieces that should be skipped.
+     * If the n-th bit is set, then the n-th piece should be skipped.
+     */
+    private volatile BitSet skipped;
 
     /**
      * Total number of pieces in torrent.
      */
     private final int piecesTotal;
-
-    /**
-     * Number of pieces that have status {@link PieceStatus#COMPLETE_VERIFIED}.
-     */
-    private volatile int piecesComplete;
 
     private final ReentrantLock lock;
 
@@ -67,13 +68,12 @@ public class Bitfield {
     public Bitfield(int piecesTotal) {
         this.pieces = new BitSet(piecesTotal);
         this.piecesTotal = piecesTotal;
-        this.piecesComplete = pieces.cardinality();
         this.lock = new ReentrantLock();
     }
 
     /**
      * @return Bitmask that describes status of all pieces.
-     *         If position i is set to 1, then piece with index i
+     *         If the n-th bit is set, then the n-th piece
      *         is in {@link PieceStatus#COMPLETE_VERIFIED} status.
      * @since 1.0
      */
@@ -95,7 +95,7 @@ public class Bitfield {
 
     /**
      * @return BitSet that describes status of all pieces.
-     *         If bit i is set to 1, then piece with index i
+     *         If the n-th bit is set, then the n-th piece
      *         is in {@link PieceStatus#COMPLETE_VERIFIED} status.
      * @since 1.7
      */
@@ -121,16 +121,79 @@ public class Bitfield {
      * @since 1.0
      */
     public int getPiecesComplete() {
-        return piecesComplete;
+        lock.lock();
+        try {
+            return pieces.cardinality();
+        } finally {
+            lock.unlock();
+        }
     }
 
     /**
-     * @return Number of pieces that have status different from {@link PieceStatus#COMPLETE_VERIFIED}.
-     *         I.e. it's the same as {@link #getPiecesTotal()} - {@link #getPiecesComplete()}
+     * @return Number of pieces that have status different {@link PieceStatus#COMPLETE_VERIFIED}.
+     * @since 1.7
+     */
+    public int getPiecesIncomplete() {
+        lock.lock();
+        try {
+            return getPiecesTotal() - pieces.cardinality();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * @return Number of pieces that have status different from {@link PieceStatus#COMPLETE_VERIFIED}
+     *         and should NOT be skipped.
      * @since 1.0
      */
     public int getPiecesRemaining() {
-        return piecesTotal - piecesComplete;
+        lock.lock();
+        try {
+            if (skipped == null) {
+                return getPiecesTotal() - getPiecesComplete();
+            } else {
+                BitSet bitmask = getPieces();
+                bitmask.or(skipped);
+                return getPiecesTotal() - bitmask.cardinality();
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * @return Number of pieces that should be skipped
+     * @since 1.7
+     */
+    public int getPiecesSkipped() {
+        if (skipped == null) {
+            return 0;
+        }
+
+        lock.lock();
+        try {
+            return skipped.cardinality();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * @return Number of pieces that should NOT be skipped
+     * @since 1.7
+     */
+    public int getPiecesNotSkipped() {
+        if (skipped == null) {
+            return piecesTotal;
+        }
+
+        lock.lock();
+        try {
+            return piecesTotal - skipped.cardinality();
+        } finally {
+            lock.unlock();
+        }
     }
 
     /**
@@ -190,15 +253,52 @@ public class Bitfield {
         lock.lock();
         try {
             pieces.set(pieceIndex);
-            piecesComplete = pieces.cardinality();
         } finally {
             lock.unlock();
         }
     }
 
     private void validatePieceIndex(Integer pieceIndex) {
-        if (pieceIndex < 0 || pieceIndex >= piecesTotal) {
-            throw new BtException("Illegal piece index: " + pieceIndex);
+        if (pieceIndex < 0 || pieceIndex >= getPiecesTotal()) {
+            throw new BtException("Illegal piece index: " + pieceIndex +
+                    ", expected 0.." + (getPiecesTotal() - 1));
+        }
+    }
+
+    /**
+     * Mark a piece as skipped
+     *
+     * @since 1.7
+     */
+    public void skip(int pieceIndex) {
+        validatePieceIndex(pieceIndex);
+
+        lock.lock();
+        try {
+            if (skipped == null) {
+                skipped = new BitSet(getPiecesTotal());
+            }
+            skipped.set(pieceIndex);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * Mark a piece as not skipped
+     *
+     * @since 1.7
+     */
+    public void unskip(int pieceIndex) {
+        validatePieceIndex(pieceIndex);
+
+        if (skipped != null) {
+            lock.lock();
+            try {
+                skipped.clear(pieceIndex);
+            } finally {
+                lock.unlock();
+            }
         }
     }
 }

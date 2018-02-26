@@ -28,6 +28,7 @@ import bt.processor.listener.ProcessingEvent;
 import bt.processor.magnet.MagnetContext;
 import bt.processor.torrent.TorrentContext;
 import bt.runtime.BtRuntime;
+import bt.torrent.fileselector.TorrentFileSelector;
 import bt.torrent.order.PieceOrder;
 import bt.torrent.order.RandomizedRarestPieceOrder;
 import bt.torrent.order.RarestPieceOrder;
@@ -49,9 +50,11 @@ public class TorrentClientBuilder<B extends TorrentClientBuilder> extends BaseCl
     private Supplier<Torrent> torrentSupplier;
     private MagnetUri magnetUri;
 
+    private TorrentFileSelector fileSelector;
     private PieceOrder pieceOrder;
 
     private List<Consumer<Torrent>> torrentConsumers;
+    private List<Runnable> fileSelectionListeners;
 
     private boolean stopWhenDownloaded;
 
@@ -183,6 +186,12 @@ public class TorrentClientBuilder<B extends TorrentClientBuilder> extends BaseCl
         return (B) this;
     }
 
+    /**
+     * Provide a callback to invoke when torrent's metadata has been fetched.
+     *
+     * @param torrentConsumer Callback to invoke when torrent's metadata has been fetched
+     * @since 1.5
+     */
     @SuppressWarnings("unchecked")
     public B afterTorrentFetched(Consumer<Torrent> torrentConsumer) {
         if (torrentConsumers == null) {
@@ -192,17 +201,46 @@ public class TorrentClientBuilder<B extends TorrentClientBuilder> extends BaseCl
         return (B) this;
     }
 
+    /**
+     * Provide a file selector for partial download of the torrent.
+     *
+     * @param fileSelector A file selector for partial download of the torrent.
+     * @since 1.7
+     */
+    @SuppressWarnings("unchecked")
+    public B fileSelector(TorrentFileSelector fileSelector) {
+        Objects.requireNonNull(fileSelector, "Missing file selector");
+        this.fileSelector = fileSelector;
+        return (B) this;
+    }
+
+    /**
+     * Provide a callback to invoke when the files have been chosen
+     *
+     * @param runnable Callback to invoke when the files have been chosen
+     * @since 1.7
+     */
+    @SuppressWarnings("unchecked")
+    public B afterFilesChosen(Runnable runnable) {
+        Objects.requireNonNull(runnable, "Missing callback");
+        if (fileSelectionListeners == null) {
+            fileSelectionListeners = new ArrayList<>();
+        }
+        fileSelectionListeners.add(runnable);
+        return (B) this;
+    }
+
     @Override
     protected ProcessingContext buildProcessingContext(BtRuntime runtime) {
         Objects.requireNonNull(storage, "Missing data storage");
 
         ProcessingContext context;
         if (torrentUrl != null) {
-            context = new TorrentContext(pieceOrder, storage, () -> fetchTorrentFromUrl(runtime, torrentUrl));
+            context = new TorrentContext(pieceOrder, fileSelector, storage, () -> fetchTorrentFromUrl(runtime, torrentUrl));
         } else if (torrentSupplier != null) {
-            context = new TorrentContext(pieceOrder, storage, torrentSupplier);
+            context = new TorrentContext(pieceOrder, fileSelector, storage, torrentSupplier);
         } else if (this.magnetUri != null) {
-            context = new MagnetContext(magnetUri, pieceOrder, storage);
+            context = new MagnetContext(magnetUri, pieceOrder, fileSelector, storage);
         } else {
             throw new IllegalStateException("Missing torrent supplier, torrent URL or magnet URI");
         }
@@ -212,7 +250,7 @@ public class TorrentClientBuilder<B extends TorrentClientBuilder> extends BaseCl
 
     @Override
     protected <C extends ProcessingContext> void collectStageListeners(ListenerSource<C> listenerSource) {
-        if (torrentConsumers != null) {
+        if (torrentConsumers != null && torrentConsumers.size() > 0) {
             BiFunction<C, ProcessingStage<C>, ProcessingStage<C>> listener = (context, next) -> {
                 context.getTorrent().ifPresent(torrent -> {
                     for (Consumer<Torrent> torrentConsumer : torrentConsumers) {
@@ -222,6 +260,14 @@ public class TorrentClientBuilder<B extends TorrentClientBuilder> extends BaseCl
                 return next;
             };
             listenerSource.addListener(ProcessingEvent.TORRENT_FETCHED, listener);
+        }
+
+        if (fileSelectionListeners != null && fileSelectionListeners.size() > 0) {
+            BiFunction<C, ProcessingStage<C>, ProcessingStage<C>> listener = (context, next) -> {
+                fileSelectionListeners.forEach(Runnable::run);
+                return next;
+            };
+            listenerSource.addListener(ProcessingEvent.FILES_CHOSEN, listener);
         }
 
         if (stopWhenDownloaded) {

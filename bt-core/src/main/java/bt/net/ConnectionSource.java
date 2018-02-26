@@ -45,7 +45,7 @@ public class ConnectionSource implements IConnectionSource {
     private final Config config;
 */
 
-    private final Map<Peer, CompletableFuture<ConnectionResult>> pendingConnections;
+    private final Map<ConnectionKey, CompletableFuture<ConnectionResult>> pendingConnections;
 /*
     // TODO: weak map
     private final ConcurrentMap<Peer, Long> unreachablePeers;
@@ -95,7 +95,9 @@ public class ConnectionSource implements IConnectionSource {
 
     @Override
     public CompletableFuture<ConnectionResult> getConnectionAsync(Peer peer, TorrentId torrentId) {
-        CompletableFuture<ConnectionResult> connection = getExistingOrPendingConnection(peer);
+        ConnectionKey key = new ConnectionKey(peer, torrentId);
+
+        CompletableFuture<ConnectionResult> connection = getExistingOrPendingConnection(key);
         if (connection != null) {
             if (connection.isDone() && LOGGER.isDebugEnabled()) {
                 LOGGER.debug("Returning existing connection for peer: {}. Torrent: {}", peer, torrentId);
@@ -132,7 +134,7 @@ public class ConnectionSource implements IConnectionSource {
         }
 
         synchronized (pendingConnections) {
-            connection = getExistingOrPendingConnection(peer);
+            connection = getExistingOrPendingConnection(key);
             if (connection != null) {
                 if (connection.isDone() && LOGGER.isDebugEnabled()) {
                     LOGGER.debug("Returning existing connection for peer: {}. Torrent: {}", peer, torrentId);
@@ -156,7 +158,7 @@ public class ConnectionSource implements IConnectionSource {
                     }
                 } finally {
                     synchronized (pendingConnections) {
-                        pendingConnections.remove(peer);
+                        pendingConnections.remove(key);
                     }
                 }
             }), connectionExecutor)
@@ -180,18 +182,18 @@ public class ConnectionSource implements IConnectionSource {
                         }
                     }));
 
-            pendingConnections.put(peer, connection);
+            pendingConnections.put(key, connection);
             return connection;
         }
     }
 
-    private CompletableFuture<ConnectionResult> getExistingOrPendingConnection(Peer peer) {
-        PeerConnection existingConnection = connectionPool.getConnection(peer);
+    private CompletableFuture<ConnectionResult> getExistingOrPendingConnection(ConnectionKey key) {
+        PeerConnection existingConnection = connectionPool.getConnection(key);
         if (existingConnection != null) {
             return CompletableFuture.completedFuture(ConnectionResult.success(existingConnection));
         }
 
-        CompletableFuture<ConnectionResult> pendingConnection = pendingConnections.get(peer);
+        CompletableFuture<ConnectionResult> pendingConnection = pendingConnections.get(key);
         if (pendingConnection != null) {
             return pendingConnection;
         }

@@ -136,6 +136,19 @@ public class CliClient  {
                 .storage(storage)
                 .pieceOrder(pieceOrder);
 
+        SessionStatePrinter printer = options.shouldDisableUi() ?
+                null : SessionStatePrinter.createKeyInputAwarePrinter(keyBindings);
+        if (!options.shouldDownloadAllFiles()) {
+            if (printer == null) {
+                clientBuilder.fileSelector(new CliFileSelector());
+            } else {
+                clientBuilder.fileSelector(new CliFileSelector(printer));
+            }
+        }
+        if (printer != null) {
+            clientBuilder.afterTorrentFetched(printer::setTorrent);
+        }
+
         if (options.getMetainfoFile() != null) {
             clientBuilder = clientBuilder.torrent(toUrl(options.getMetainfoFile()));
         } else if (options.getMagnetUri() != null) {
@@ -144,10 +157,8 @@ public class CliClient  {
             throw new IllegalStateException("Torrent file or magnet URI is required");
         }
 
-        clientBuilder.afterTorrentFetched(torrent -> printer.ifPresent(p -> p.setTorrent(torrent)));
         this.client = clientBuilder.build();
-        this.printer = options.shouldDisableUi() ?
-                Optional.empty() : Optional.of(SessionStatePrinter.createKeyInputAwarePrinter(keyBindings));
+        this.printer = Optional.ofNullable(printer);
     }
 
     private Optional<Integer> getPortOverride() {
