@@ -251,7 +251,7 @@ class Connections {
         return connections.size();
     }
 
-    synchronized boolean remove(PeerConnection connection) {
+    synchronized void remove(PeerConnection connection) {
         Objects.requireNonNull(connection);
 
         Peer peer = connection.getRemotePeer();
@@ -259,15 +259,13 @@ class Connections {
         ConnectionKey key = new ConnectionKey(peer, torrentId);
 
         PeerConnection removed = connections.remove(key);
-        boolean success = (removed == connection);
-        if (success) {
+        if (removed != null) {
             Collection<PeerConnection> torrentConnections = connectionsByTorrent.get(torrentId);
             torrentConnections.remove(removed);
             if (torrentConnections.isEmpty()) {
                 connectionsByTorrent.remove(torrentId);
             }
         }
-        return success;
     }
 
     synchronized PeerConnection putIfAbsent(PeerConnection connection) {
