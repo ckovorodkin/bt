@@ -67,6 +67,8 @@ public class TorrentWorker {
     private Bitfield bitfield;
     private Assignments assignments;
 
+    private final long dispatcherId;
+
     public TorrentWorker(TorrentId torrentId,
                          IMessageDispatcher dispatcher,
                          IPeerWorkerFactory peerWorkerFactory,
@@ -86,6 +88,8 @@ public class TorrentWorker {
 
         this.bitfield = requireNonNull(bitfield);
         this.assignments = requireNonNull(assignments);
+
+        this.dispatcherId = dispatcher.nextId();
     }
 
     public double getRatio() {
@@ -101,8 +105,8 @@ public class TorrentWorker {
         final PeerWorker worker = createPeerWorker(peer);
         final PeerWorker existing = peerMap.putIfAbsent(peer, worker);
         if (existing == null) {
-            dispatcher.addMessageConsumer(torrentId, peer, message -> consume(peer, message));
-            dispatcher.addMessageSupplier(torrentId, peer, () -> produce(peer));
+            dispatcher.addMessageConsumer(torrentId, peer, dispatcherId, message -> consume(peer, message));
+            dispatcher.addMessageSupplier(torrentId, peer, dispatcherId, () -> produce(peer));
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("Added connection for peer: " + peer);
             }
@@ -213,6 +217,8 @@ public class TorrentWorker {
     private void processDisconnectedPeers() {
         Peer disconnectedPeer;
         while ((disconnectedPeer = disconnectedPeers.poll()) != null) {
+            dispatcher.removeMessageConsumer(torrentId, disconnectedPeer, dispatcherId);
+            dispatcher.removeMessageSupplier(torrentId, disconnectedPeer, dispatcherId);
             Assignment assignment = assignments.get(disconnectedPeer);
             if (assignment != null) {
                 assignments.remove(assignment);
