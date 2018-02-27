@@ -16,6 +16,7 @@
 
 package bt.net;
 
+import bt.logging.MDCWrapper;
 import bt.metainfo.TorrentId;
 import bt.protocol.Message;
 import bt.runtime.Config;
@@ -30,6 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -93,96 +95,83 @@ public class MessageDispatcher implements IMessageDispatcher {
         @Override
         public void run() {
             while (!shutdown) {
-                //noinspection Convert2streamapi
-                for (TorrentId torrentId : consumers.keySet()) {
-                    if (torrentRegistry.isSupportedAndActive(torrentId)) {
-                        processConsumerMap(torrentId);
-                    }
-                }
-                //noinspection Convert2streamapi
-                for (TorrentId torrentId : suppliers.keySet()) {
-                    if (torrentRegistry.isSupportedAndActive(torrentId)) {
-                        processSupplierMap(torrentId);
-                    }
-                }
-
+                process(consumers, this::processConsumers);
+                process(suppliers, this::processSuppliers);
                 loopControl.iterationFinished();
             }
         }
 
-        private void processConsumerMap(TorrentId torrentId) {
-            Map<ConnectionKey, Map<Long, Consumer<Message>>> connectionKeyMap = consumers.get(torrentId);
-            if (connectionKeyMap == null) {
-                return;
-            }
-            connectionKeyMap.forEach((connectionKey, consumers) -> {
-                PeerConnection connection = pool.getConnection(connectionKey);
-                if (connection == null || connection.isClosed()) {
+        private <U> void process(Map<TorrentId, Map<ConnectionKey, Map<Long, U>>> map,
+                                 BiConsumer<PeerConnection, Map<Long, U>> biConsumer) {
+            map.forEach((torrentId, connectionKeyMap) -> {
+                if (!torrentRegistry.isSupportedAndActive(torrentId)) {
                     return;
                 }
-                if (consumers.isEmpty()) {
-                    return;
-                }
-                for (; ; ) {
-                    final Message message;
-                    try {
-                        message = connection.readMessageNow();
-                    } catch (Exception | AssertionError e) {
-                        LOGGER.error("Error when reading message from peer connection: " + connectionKey.getPeer(), e);
-                        break;
+                connectionKeyMap.forEach((connectionKey, items) -> {
+                    final PeerConnection connection = pool.getConnection(connectionKey);
+                    if (connection == null || connection.isClosed()) {
+                        return;
                     }
-
-                    if (message == null) {
-                        break;
-                    }
-
-                    loopControl.incrementProcessed();
-                    //noinspection StatementWithEmptyBody
-                    if (consumers.isEmpty()) {
-                        // disconnected. ignore message.
-                    }
-                    for (Consumer<Message> consumer : consumers.values()) {
-                        try {
-                            consumer.accept(message);
-                        } catch (Exception | AssertionError e) {
-                            LOGGER.warn("Error in message consumer", e);
-                        }
-                    }
-                }
+                    new MDCWrapper()
+                            .putRemoteAddress(connectionKey.getPeer())
+                            .run(() -> biConsumer.accept(connection, items));
+                });
             });
         }
 
-        private void processSupplierMap(TorrentId torrentId) {
-            Map<ConnectionKey, Map<Long, Supplier<Message>>> connectionKeyMap = suppliers.get(torrentId);
-            if (connectionKeyMap == null) {
+        private void processConsumers(PeerConnection connection, Map<Long, Consumer<Message>> consumers) {
+            if (consumers.isEmpty()) {
                 return;
             }
-            connectionKeyMap.forEach((connectionKey, suppliers) -> {
-                PeerConnection connection = pool.getConnection(connectionKey);
-                if (connection == null || connection.isClosed()) {
-                    return;
+            for (; ; ) {
+                final Message message;
+                try {
+                    message = connection.readMessageNow();
+                } catch (Exception | AssertionError e) {
+                    LOGGER.error("Error when reading message from peer connection: " + connection.getRemotePeer(), e);
+                    break;
                 }
-                for (Supplier<Message> supplier : suppliers.values()) {
-                    final Message message;
-                    try {
-                        message = supplier.get();
-                    } catch (Exception | AssertionError e) {
-                        LOGGER.warn("Error in message supplier", e);
-                        continue;
-                    }
 
-                    if (message == null) {
-                        continue;
-                    }
+                if (message == null) {
+                    break;
+                }
 
-                    loopControl.incrementProcessed();
+                loopControl.incrementProcessed();
+                //noinspection StatementWithEmptyBody
+                if (consumers.isEmpty()) {
+                    // disconnected. ignore message.
+                }
+                for (Consumer<Message> consumer : consumers.values()) {
                     try {
-                        connection.postMessage(message);
+                        consumer.accept(message);
                     } catch (Exception | AssertionError e) {
-                        LOGGER.error("Error when writing message", e);
+                        LOGGER.warn("Error in message consumer", e);
                     }
                 }
-            });
+            }
+        }
+
+        private void processSuppliers(PeerConnection connection, Map<Long, Supplier<Message>> suppliers) {
+            for (Supplier<Message> supplier : suppliers.values()) {
+                final Message message;
+                try {
+                    message = supplier.get();
+                } catch (Exception | AssertionError e) {
+                    LOGGER.warn("Error in message supplier", e);
+                    continue;
+                }
+
+                if (message == null) {
+                    continue;
+                }
+
+                loopControl.incrementProcessed();
+                try {
+                    connection.postMessage(message);
+                } catch (Exception | AssertionError e) {
+                    LOGGER.error("Error when writing message", e);
+                }
+            }
         }
 
         public void shutdown() {
