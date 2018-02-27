@@ -28,7 +28,20 @@ import java.util.function.Supplier;
  * @since 1.0
  */
 public interface IMessageDispatcher {
+    /**
+     * @since 0.0
+     */
     long nextId();
+
+    /**
+     * @since 0.0
+     */
+    void addMaintainer(TorrentId torrentId, long id, Runnable maintainer);
+
+    /**
+     * @since 0.0
+     */
+    void removeMaintainer(TorrentId torrentId, long id);
 
     /**
      * Add a message consumer to receive messages from a remote peer for a given torrent.
@@ -36,9 +49,15 @@ public interface IMessageDispatcher {
      * @param torrentId Torrent ID
      * @param sender Remote peer, whose messages should be relayed to the consumer
      * @param id @since 0.0
-     *@param messageConsumer Message consumer  @since 1.7
+     * @param messageConsumer Message consumer
+     * @since 1.7
      */
     void addMessageConsumer(TorrentId torrentId, Peer sender, long id, Consumer<Message> messageConsumer);
+
+    /**
+     * @since 0.0
+     */
+    void removeMessageConsumer(TorrentId torrentId, Peer sender, long id);
 
     /**
      * Add a message supplier to send messages to a remote peer for a given torrent.
@@ -46,14 +65,10 @@ public interface IMessageDispatcher {
      * @param torrentId Torrent ID
      * @param recipient Remote peer, to whom the supplied messages should be sent
      * @param id @since 0.0
-     *@param messageSupplier Message supplier  @since 1.7
+     * @param messageSupplier Message supplier
+     * @since 1.7
      */
     void addMessageSupplier(TorrentId torrentId, Peer recipient, long id, Supplier<Message> messageSupplier);
-
-    /**
-     * @since 0.0
-     */
-    void removeMessageConsumer(TorrentId torrentId, Peer sender, long id);
 
     /**
      * @since 0.0

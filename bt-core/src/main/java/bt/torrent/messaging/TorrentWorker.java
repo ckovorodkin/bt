@@ -90,6 +90,8 @@ public class TorrentWorker {
         this.assignments = requireNonNull(assignments);
 
         this.dispatcherId = dispatcher.nextId();
+
+        dispatcher.addMaintainer(torrentId, dispatcherId, this::maintain);
     }
 
     public double getRatio() {
@@ -113,6 +115,11 @@ public class TorrentWorker {
         }
     }
 
+    private void maintain() {
+        processDisconnectedPeers();
+        processTimeoutedPeers();
+    }
+
     private void consume(Peer peer, Message message) {
         getWorker(peer).ifPresent(worker -> worker.accept(message));
     }
@@ -127,8 +134,6 @@ public class TorrentWorker {
             if (bitfield.getPiecesRemaining() > 0 || assignments.count() > 0) {
                 inspectAssignment(peer, worker, assignments);
                 if (shouldUpdateAssignments(assignments)) {
-                    processDisconnectedPeers();
-                    processTimeoutedPeers();
                     updateAssignments(assignments);
                 }
                 Message interestUpdate = interestUpdates.remove(peer);

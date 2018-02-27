@@ -45,6 +45,7 @@ public class MessageDispatcher implements IMessageDispatcher {
     private static final Logger LOGGER = LoggerFactory.getLogger(MessageDispatcher.class);
 
     private final AtomicLong idSequence;
+    private final Map<TorrentId, Map<Long, Runnable>> maintainers;
     private final Map<TorrentId, Map<ConnectionKey, Map<Long, Consumer<Message>>>> consumers;
     private final Map<TorrentId, Map<ConnectionKey, Map<Long, Supplier<Message>>>> suppliers;
 
@@ -57,6 +58,7 @@ public class MessageDispatcher implements IMessageDispatcher {
                              TorrentRegistry torrentRegistry,
                              Config config) {
         this.idSequence = new AtomicLong();
+        this.maintainers = new ConcurrentHashMap<>();
         this.consumers = new ConcurrentHashMap<>();
         this.suppliers = new ConcurrentHashMap<>();
         this.torrentRegistry = torrentRegistry;
@@ -95,10 +97,20 @@ public class MessageDispatcher implements IMessageDispatcher {
         @Override
         public void run() {
             while (!shutdown) {
+                processMaintainers();
                 process(consumers, this::processConsumers);
                 process(suppliers, this::processSuppliers);
                 loopControl.iterationFinished();
             }
+        }
+
+        private void processMaintainers() {
+            maintainers.forEach((torrentId, maintainers) -> {
+                if (!torrentRegistry.isSupportedAndActive(torrentId)) {
+                    return;
+                }
+                maintainers.values().forEach(Runnable::run);
+            });
         }
 
         private <U> void process(Map<TorrentId, Map<ConnectionKey, Map<Long, U>>> map,
@@ -230,18 +242,35 @@ public class MessageDispatcher implements IMessageDispatcher {
     }
 
     @Override
+    public void addMaintainer(TorrentId torrentId, long id, Runnable maintainer) {
+        synchronized (modificationLock) {
+            maintainers.computeIfAbsent(torrentId, it -> new ConcurrentHashMap<>()).put(id, maintainer);
+        }
+    }
+
+    @Override
+    public void removeMaintainer(TorrentId torrentId, long id) {
+        synchronized (modificationLock) {
+            maintainers.computeIfPresent(torrentId, (it, map) -> {
+                map.remove(id);
+                return map.isEmpty() ? null : map;
+            });
+        }
+    }
+
+    @Override
     public void addMessageConsumer(TorrentId torrentId, Peer sender, long id, Consumer<Message> messageConsumer) {
         add(consumers, torrentId, sender, id, messageConsumer);
     }
 
     @Override
-    public void addMessageSupplier(TorrentId torrentId, Peer recipient, long id, Supplier<Message> messageSupplier) {
-        add(suppliers, torrentId, recipient, id, messageSupplier);
+    public void removeMessageConsumer(TorrentId torrentId, Peer sender, long id) {
+        remove(consumers, torrentId, sender, id);
     }
 
     @Override
-    public void removeMessageConsumer(TorrentId torrentId, Peer sender, long id) {
-        remove(consumers, torrentId, sender, id);
+    public void addMessageSupplier(TorrentId torrentId, Peer recipient, long id, Supplier<Message> messageSupplier) {
+        add(suppliers, torrentId, recipient, id, messageSupplier);
     }
 
     @Override
