@@ -98,6 +98,11 @@ public interface TorrentSessionState {
     TransferAmount getTransferAmount(Peer peer);
 
     /**
+     * @since 0.0
+     */
+    boolean isDataWorkerOverload();
+
+    /**
      * @return Collection of peers, that this session is connected to
      * @since 1.0
      */

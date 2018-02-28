@@ -89,7 +89,7 @@ public class RequestProducer {
         }
 
         Queue<Request> requestQueue = connectionState.getRequestQueue();
-        while (!requestQueue.isEmpty() && connectionState.getPendingRequests().size() <= MAX_PENDING_REQUESTS) {
+        while (!requestQueue.isEmpty() && connectionState.getPendingRequests().size() < MAX_PENDING_REQUESTS) {
             if (dataWorker.isOverload()) {
                 assignment.check();
                 //todo: one-time-message per each overload

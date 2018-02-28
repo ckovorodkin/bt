@@ -184,6 +184,10 @@ public class ConnectionState {
         transferAmountHandler.handleUpload(uploaded);
     }
 
+    public Integer getPiece() {
+        return assignment.map(Assignment::getPiece).orElse(null);
+    }
+
     /**
      * Get keys of block requests, that have been cancelled by remote peer.
      *

@@ -129,6 +129,8 @@ public class SessionStatePrinter {
     private volatile long started;
     private volatile long downloaded;
     private volatile long uploaded;
+    private volatile boolean showDownload;
+    private volatile Long lastShowDownloadUpdateAt;
     private final ConcurrentHashMap<Peer, AtomicLong> peerDownloadMap;
     private final ConcurrentHashMap<Peer, AtomicLong> peerUploadMap;
 
@@ -144,6 +146,8 @@ public class SessionStatePrinter {
             clearScreen();
 
             started = System.currentTimeMillis();
+            showDownload = true;
+            lastShowDownloadUpdateAt = null;
 
             peerDownloadMap = new ConcurrentHashMap<>();
             peerUploadMap = new ConcurrentHashMap<>();
@@ -221,10 +225,32 @@ public class SessionStatePrinter {
             long downloaded = sessionState.getDownloaded();
             long uploaded = sessionState.getUploaded();
 
+            final long uploadRate = uploaded - this.uploaded;
+            final long downloadRate = downloaded - this.downloaded;
+
+            final long interval = currentTimeMillis - (lastShowDownloadUpdateAt == null ? 0 : lastShowDownloadUpdateAt);
+            final boolean updateShowDownload = lastShowDownloadUpdateAt == null //br
+                    || showDownload && interval >= 10_000 || !showDownload && interval >= 5_000;
+            if (updateShowDownload) {
+                if (downloadRate == uploadRate) {
+                    if (downloadRate + uploadRate != 0) {
+                        showDownload = false;
+                    }
+                    lastShowDownloadUpdateAt = null;
+                } else {
+                    final boolean newShowDownload = downloadRate > uploadRate;
+                    if (lastShowDownloadUpdateAt == null || showDownload != newShowDownload) {
+                        showDownload = newShowDownload;
+                        lastShowDownloadUpdateAt = currentTimeMillis;
+                    }
+                }
+            }
+
             printTorrentNameAndSize(torrent);
 
             String elapsedTime = getElapsedTime(currentTimeMillis);
-            String remainingTime = getRemainingTime(downloaded - this.downloaded,
+            String remainingTime = getRemainingTime(
+                    downloadRate,
                     sessionState.getPiecesRemaining(), sessionState.getPiecesNotSkipped());
             graphics.putString(0, 2, String.format(DURATION_INFO, elapsedTime, remainingTime));
 
@@ -234,9 +260,9 @@ public class SessionStatePrinter {
                     SESSION_INFO,
                     activePeerCount,
                     peerCount,
-                    getDisplayString(RATE_UNIT_FORMAT, downloaded - this.downloaded, units, false),
+                    getDisplayString(RATE_UNIT_FORMAT, downloadRate, units, false),
                     getDisplayString(AMOUNT_UNIT_FORMAT, downloaded, units),
-                    getDisplayString(RATE_UNIT_FORMAT, uploaded - this.uploaded, units, false),
+                    getDisplayString(RATE_UNIT_FORMAT, uploadRate, units, false),
                     getDisplayString(AMOUNT_UNIT_FORMAT, uploaded, units)
             );
             graphics.putString(0, 3, sessionInfo);
@@ -277,15 +303,21 @@ public class SessionStatePrinter {
                     onlineLeachCount
             ));
 
-            //"Idle Rec  "
+            final boolean dataWorkerOverload = sessionState.isDataWorkerOverload();
+
             graphics.putString(0,
                     8,
-                    "---------- Peer  Source State   Have ------------ Download -------------- Upload"
+                    "---------- Peer   Source Attempt  State   Have Piece R C W" + (showDownload
+                            ? " ------------ Download"
+                            : " -------------- Upload")
             );
             final List<PeerRecord> peerRecords = getPeerRecords(sessionState);
             for (int i = 0; i < peerRecords.size() && i < 15; i++) {
                 final PeerRecord peerRecord = peerRecords.get(i);
-                graphics.putString(0, 9 + i, getPeerRecordString(currentTimeMillis, peerRecord));
+                graphics.putString(0,
+                        9 + i,
+                        getPeerRecordString(currentTimeMillis, peerRecord, dataWorkerOverload, showDownload)
+                );
             }
 
             // might use RefreshType.DELTA, but it does not tolerate resizing of the window
@@ -294,14 +326,13 @@ public class SessionStatePrinter {
             if (LOGGER.isDebugEnabled()) {
                 if (complete) {
                     LOGGER.debug(String.format(LOG_ENTRY_SEED,
-                            peerCount,
-                            getDisplayString(RATE_UNIT_FORMAT, uploaded - this.uploaded, units, false)
+                            peerCount, getDisplayString(RATE_UNIT_FORMAT, uploadRate, units, false)
                     ));
                 } else {
                     LOGGER.debug(String.format(LOG_ENTRY,
                             peerCount,
-                            getDisplayString(RATE_UNIT_FORMAT, downloaded - this.downloaded, units, false),
-                            getDisplayString(RATE_UNIT_FORMAT, uploaded - this.uploaded, units, false),
+                            getDisplayString(RATE_UNIT_FORMAT, downloadRate, units, false),
+                            getDisplayString(RATE_UNIT_FORMAT, uploadRate, units, false),
                             completePercents,
                             remainingTime
                     ));
@@ -475,9 +506,9 @@ public class SessionStatePrinter {
     }
 
     private String getPeerRecordString(@SuppressWarnings("UnusedParameters") long currentTimeMillis,
-                                       PeerRecord peerRecord) {
-        final String flags = getFlags(peerRecord);
-
+                                       PeerRecord peerRecord,
+                                       boolean dataWorkerOverload,
+                                       boolean showDownload) {
         final AtomicLong previousDownload =
                 peerDownloadMap.computeIfAbsent(peerRecord.getPeer(), it -> new AtomicLong());
         final long download = peerRecord.getDownload();
@@ -488,33 +519,47 @@ public class SessionStatePrinter {
         final long upload = peerRecord.getUpload();
         final long uploadDelta = upload - previousUpload.get();
         previousUpload.set(upload);
-
-        return String.format("%15s%s %5.1f%% %9s %11s %9s %11s",
+        return String.format("%15s %s %4s %2d %s %5.1f%% %5s %1s %1s %1s %9s %11s",
                 peerRecord.getInetAddress().getHostAddress(),
                 //peerRecord.getPeerInfo().getPeer().getPort(),//" %5s"
-                flags,
-                //peerRecord.getConnectAt() == null ? "" : (peerRecord.getConnectAt() - currentTimeMillis + 500L) / 1000L,
-                //peerRecord.getConnectAttempts(), //"%4s %2d "
+                getSourceFlags(peerRecord),
+                peerRecord.getConnectAt() == null ? "" : (peerRecord.getConnectAt() - currentTimeMillis + 500L) / 1000L,
+                peerRecord.getConnectAttempts(),
+                getConnectionFlags(peerRecord),
                 peerRecord.getPieces() * 100.0 / peerRecord.getPiecesTotal(),
-                getDisplayString(AMOUNT_UNIT_FORMAT, download, units),
-                getDisplayString(RATE_UNIT_FORMAT, downloadDelta, units),
-                getDisplayString(AMOUNT_UNIT_FORMAT, upload, units),
-                getDisplayString(RATE_UNIT_FORMAT, uploadDelta, units)
+                getDisplayValue(peerRecord.getCurrentPiece(), peerRecord.getPiecesTotal(), false, ""),
+                getDisplayValue(peerRecord.getPendingRequests(), 9, true, dataWorkerOverload ? "X" : ""),
+                getDisplayValue(peerRecord.getCancelledPeerRequests(), 9, true, ""),
+                getDisplayValue(peerRecord.getPendingWrites(), 9, true, ""),
+                showDownload
+                        ? getDisplayString(AMOUNT_UNIT_FORMAT, download, units)
+                        : getDisplayString(AMOUNT_UNIT_FORMAT, upload, units),
+                showDownload
+                        ? getDisplayString(RATE_UNIT_FORMAT, downloadDelta, units)
+                        : getDisplayString(RATE_UNIT_FORMAT, uploadDelta, units)
         );
     }
 
-    private String getFlags(PeerRecord peerRecord) {
+    private String getDisplayValue(Integer value, int maxValue, boolean hideZero, String zerro) {
+        return value == null ? "" : value == 0 && hideZero ? zerro : value > maxValue ? "^" : String.valueOf(value);
+    }
+
+    private String getSourceFlags(PeerRecord peerRecord) {
         final StringBuilder sb = new StringBuilder();
         final Set<PeerSourceType> peerSourceTypes = peerRecord.getPeerSourceTypes();
-        sb.append(peerSourceTypes.contains(PeerSourceType.MANUAL) ? 'X' : ' ');
-        sb.append(peerSourceTypes.contains(PeerSourceType.INCOMING) ? 'I' : ' ');
-        sb.append(peerSourceTypes.contains(PeerSourceType.MAGNET) ? 'M' : ' ');
-        sb.append(peerSourceTypes.contains(PeerSourceType.TRACKER) ? 'T' : ' ');
-        sb.append(peerSourceTypes.contains(PeerSourceType.PEX) ? 'E' : ' ');
-        sb.append(peerSourceTypes.contains(PeerSourceType.DHT) ? 'H' : ' ');
-        sb.append(peerSourceTypes.contains(PeerSourceType.LSD) ? 'L' : ' ');
-        sb.append(peerSourceTypes.contains(PeerSourceType.UNKNOWN) ? 'U' : ' ');
-        //sb.append(' ');
+        sb.append(peerSourceTypes.contains(PeerSourceType.MANUAL) ? 'X' : '.');
+        sb.append(peerSourceTypes.contains(PeerSourceType.INCOMING) ? 'I' : '.');
+        sb.append(peerSourceTypes.contains(PeerSourceType.MAGNET) ? 'M' : '.');
+        sb.append(peerSourceTypes.contains(PeerSourceType.TRACKER) ? 'T' : '.');
+        sb.append(peerSourceTypes.contains(PeerSourceType.PEX) ? 'E' : '.');
+        sb.append(peerSourceTypes.contains(PeerSourceType.DHT) ? 'H' : '.');
+        sb.append(peerSourceTypes.contains(PeerSourceType.LSD) ? 'L' : '.');
+        sb.append(peerSourceTypes.contains(PeerSourceType.UNKNOWN) ? 'U' : '.');
+        return sb.toString();
+    }
+
+    private String getConnectionFlags(PeerRecord peerRecord) {
+        final StringBuilder sb = new StringBuilder();
         final PeerState peerState = peerRecord.getPeerState();
         switch (peerState) {
             case DISCONNECTED:
@@ -529,12 +574,12 @@ public class SessionStatePrinter {
             default:
                 throw new RuntimeException(String.format("Unsupported peerState: '%s'", peerState));
         }
-        sb.append(peerRecord.isTimeouted() ? 'T' : ' ');
+        sb.append(peerRecord.isTimeouted() ? 'T' : '.');
         //sb.append(' ');
-        sb.append(Boolean.TRUE.equals(peerRecord.isChoking()) ? 'C' : ' ');
-        sb.append(Boolean.TRUE.equals(peerRecord.isInterested()) ? 'I' : ' ');
-        sb.append(Boolean.TRUE.equals(peerRecord.isPeerInterested()) ? 'i' : ' ');
-        sb.append(Boolean.TRUE.equals(peerRecord.isPeerChoking()) ? 'c' : ' ');
+        sb.append(Boolean.TRUE.equals(peerRecord.isChoking()) ? 'C' : '.');
+        sb.append(Boolean.TRUE.equals(peerRecord.isInterested()) ? 'I' : '.');
+        sb.append(Boolean.TRUE.equals(peerRecord.isPeerInterested()) ? 'i' : '.');
+        sb.append(Boolean.TRUE.equals(peerRecord.isPeerChoking()) ? 'c' : '.');
         return sb.toString();
     }
 }

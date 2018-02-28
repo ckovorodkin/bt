@@ -120,6 +120,7 @@ public class InitializeTorrentProcessingStage<C extends TorrentContext> extends 
                 descriptor,
                 torrentWorker,
                 peerManager,
+                dataWorker,
                 transferAmountStatistic
         ));
 

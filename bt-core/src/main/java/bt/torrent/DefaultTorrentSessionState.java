@@ -20,6 +20,7 @@ import bt.metainfo.TorrentId;
 import bt.net.Peer;
 import bt.statistic.TransferAmount;
 import bt.statistic.TransferAmountStatistic;
+import bt.torrent.data.DataWorker;
 import bt.torrent.messaging.ConnectionState;
 import bt.torrent.messaging.PeerInfoView;
 import bt.torrent.messaging.PeerManager;
@@ -36,6 +37,7 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
     private final TorrentDescriptor descriptor;
     private final TorrentWorker worker;
     private final PeerManager peerManager;
+    private final DataWorker dataWorker;
     private final TransferAmountStatistic transferAmountStatistic;
 
     private final BitSet emptyPieces;
@@ -45,11 +47,13 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
                                       TorrentDescriptor descriptor,
                                       TorrentWorker worker,
                                       PeerManager peerManager,
+                                      DataWorker dataWorker,
                                       TransferAmountStatistic transferAmountStatistic) {
         this.torrentId = torrentId;
         this.descriptor = descriptor;
         this.worker = worker;
         this.peerManager = peerManager;
+        this.dataWorker = dataWorker;
         this.transferAmountStatistic = transferAmountStatistic;
         this.emptyPieces = new BitSet();
     }
@@ -142,6 +146,11 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
     @Override
     public Set<Peer> getConnectedPeers() {
         return Collections.unmodifiableSet(worker.getPeers());
+    }
+
+    @Override
+    public boolean isDataWorkerOverload() {
+        return dataWorker.isOverload();
     }
 
     @Override

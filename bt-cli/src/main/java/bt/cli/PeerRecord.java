@@ -39,8 +39,12 @@ class PeerRecord {
     private final Boolean interested;
     private final Boolean peerChoking;
     private final Boolean peerInterested;
-    private final int pieces;
     private final int piecesTotal;
+    private final int pieces;
+    private final Integer currentPiece;
+    private final Integer pendingRequests;
+    private final Integer cancelledPeerRequests;
+    private final Integer pendingWrites;
     private final long download;
     private final long upload;
 
@@ -55,8 +59,12 @@ class PeerRecord {
         this.interested = connectionState == null ? null : connectionState.isInterested();
         this.peerChoking = connectionState == null ? null : connectionState.isPeerChoking();
         this.peerInterested = connectionState == null ? null : connectionState.isPeerInterested();
-        this.pieces = peerInfo.getPieces();
         this.piecesTotal = peerInfo.getPiecesTotal();
+        this.pieces = peerInfo.getPieces();
+        this.currentPiece = connectionState == null ? null : connectionState.getPiece();
+        this.pendingRequests = connectionState == null ? null : connectionState.getPendingRequests().size();
+        this.cancelledPeerRequests = connectionState == null ? null : connectionState.getCancelledPeerRequests().size();
+        this.pendingWrites = connectionState == null ? null : connectionState.getPendingWrites().size();
         this.download = peerInfo.getTransferAmount().getDownload();
         this.upload = peerInfo.getTransferAmount().getUpload();
     }
@@ -105,16 +113,32 @@ class PeerRecord {
         return peerChoking;
     }
 
-    public Boolean isPeerInterested() {
-        return peerInterested;
+    public int getPiecesTotal() {
+        return piecesTotal;
     }
 
     public int getPieces() {
         return pieces;
     }
 
-    public int getPiecesTotal() {
-        return piecesTotal;
+    public Integer getCurrentPiece() {
+        return currentPiece;
+    }
+
+    public Boolean isPeerInterested() {
+        return peerInterested;
+    }
+
+    public Integer getPendingRequests() {
+        return pendingRequests;
+    }
+
+    public Integer getCancelledPeerRequests() {
+        return cancelledPeerRequests;
+    }
+
+    public Integer getPendingWrites() {
+        return pendingWrites;
     }
 
     public long getDownload() {
