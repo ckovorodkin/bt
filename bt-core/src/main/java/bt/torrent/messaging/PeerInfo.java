@@ -141,7 +141,11 @@ public class PeerInfo implements PeerInfoView {
     }
 
     public boolean disconnect(long timestamp, long connectionId) {
-        final boolean disconnected = this.connectionId.compareAndSet(connectionId, null);
+        // can't use "this.connectionId.compareAndSet(connectionId, null);"
+        // because this.connectionId is AtomicReference<Long>, not AtomicLong
+        final Long currentConnectionId = this.connectionId.get();
+        final boolean disconnected = currentConnectionId != null && currentConnectionId == connectionId &&
+                this.connectionId.compareAndSet(currentConnectionId, null);
         if (disconnected) {
             assert peerState.get() == PeerState.ACTIVE;
             peerState.set(PeerState.DISCONNECTED);

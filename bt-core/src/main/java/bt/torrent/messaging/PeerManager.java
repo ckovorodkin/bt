@@ -226,6 +226,15 @@ public class PeerManager {
             connectedPeerInfoMap.remove(peer);
             torrentWorker.removePeer(peer);
             piecesStatistics.removePieces(peer);
+        } else {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(
+                        "Ignore event with expired connection Id for peer {}. Expected: {{}}, actual: {{}}",
+                        peer,
+                        connectionId,
+                        peerInfo.getConnectionId()
+                );
+            }
         }
     }
 
