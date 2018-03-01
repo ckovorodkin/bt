@@ -106,6 +106,11 @@ public class SocketPeerConnection implements PeerConnection {
     }
 
     @Override
+    public boolean isEncrypted() {
+        return handler.isEncrypted();
+    }
+
+    @Override
     public synchronized Message readMessageNow() throws IOException {
         Message message = handler.receive();
         if (message != null) {

@@ -26,6 +26,11 @@ import bt.protocol.Message;
 public interface ChannelHandler {
 
     /**
+     * @since 0.0
+     */
+    boolean isEncrypted();
+
+    /**
      * @return true, if the message has been sent
      * @since 1.6
      */

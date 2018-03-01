@@ -61,6 +61,11 @@ public class SocketChannelHandler implements ChannelHandler {
     }
 
     @Override
+    public boolean isEncrypted() {
+        return context.pipeline().isEncrypted();
+    }
+
+    @Override
     public boolean send(Message message) {
         boolean success = context.pipeline().encode(message);
         if (success) {

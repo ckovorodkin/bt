@@ -23,6 +23,7 @@ import bt.torrent.messaging.PeerInfoView;
 
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -101,6 +102,11 @@ public interface TorrentSessionState {
      * @since 0.0
      */
     boolean isDataWorkerOverload();
+
+    /**
+     * @since 0.0
+     */
+    Optional<Boolean> isEncryptedConnection(Peer peer);
 
     /**
      * @return Collection of peers, that this session is connected to

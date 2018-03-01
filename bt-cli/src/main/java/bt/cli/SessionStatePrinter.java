@@ -486,6 +486,7 @@ public class SessionStatePrinter {
         final Collection<PeerInfoView> onlinePeerInfos = sessionState.getOnlinePeerInfos();
         return onlinePeerInfos.stream().map(peerInfo -> new PeerRecord(peerInfo,
                 timeoutedPeers.contains(peerInfo.getPeer()),
+                sessionState.isEncryptedConnection(peerInfo.getPeer()),
                 sessionState.getConnectionState(peerInfo.getPeer())
         )).sorted((o1, o2) -> {
             int cmp = -Long.compare(o1.getDownload() + o1.getUpload(), o2.getDownload() + o2.getUpload());
@@ -569,7 +570,7 @@ public class SessionStatePrinter {
                 sb.append('C');
                 break;
             case ACTIVE:
-                sb.append('A');
+                sb.append(Boolean.TRUE.equals(peerRecord.isEncryptedConnection()) ? 'E' : 'A');
                 break;
             default:
                 throw new RuntimeException(String.format("Unsupported peerState: '%s'", peerState));

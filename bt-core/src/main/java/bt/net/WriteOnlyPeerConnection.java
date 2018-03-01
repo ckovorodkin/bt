@@ -54,6 +54,11 @@ class WriteOnlyPeerConnection implements PeerConnection {
     }
 
     @Override
+    public boolean isEncrypted() {
+        return delegate.isEncrypted();
+    }
+
+    @Override
     public Message readMessageNow() throws IOException {
         throw new UnsupportedOperationException("Connection is write-only");
     }

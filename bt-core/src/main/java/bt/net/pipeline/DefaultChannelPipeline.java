@@ -68,6 +68,11 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     }
 
     @Override
+    public boolean isEncrypted() {
+        return !encoders.isEmpty() || !decoders.isEmpty();
+    }
+
+    @Override
     public Message decode() {
         checkHandlerIsBound();
 

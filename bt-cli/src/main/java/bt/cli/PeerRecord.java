@@ -23,6 +23,7 @@ import bt.torrent.messaging.PeerInfoView;
 import bt.torrent.messaging.PeerState;
 
 import java.net.InetAddress;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -34,6 +35,7 @@ class PeerRecord {
     private final Long connectAt;
     private final int connectAttempts;
     private final PeerState peerState;
+    private final Boolean encryptedConnection;
     private final boolean timeouted;
     private final Boolean choking;
     private final Boolean interested;
@@ -48,12 +50,16 @@ class PeerRecord {
     private final long download;
     private final long upload;
 
-    public PeerRecord(PeerInfoView peerInfo, boolean timeouted, ConnectionState connectionState) {
+    public PeerRecord(PeerInfoView peerInfo,
+                      boolean timeouted,
+                      Optional<Boolean> encryptedConnection,
+                      ConnectionState connectionState) {
         this.peer = peerInfo.getPeer();
         this.peerSourceTypes = peerInfo.getPeerSourceTypes();
         this.connectAt = peerInfo.getConnectAt();
         this.connectAttempts = peerInfo.getConnectAttempts();
         this.peerState = peerInfo.getPeerState();
+        this.encryptedConnection = encryptedConnection.orElse(null);
         this.timeouted = timeouted;
         this.choking = connectionState == null ? null : connectionState.isChoking();
         this.interested = connectionState == null ? null : connectionState.isInterested();
@@ -95,6 +101,10 @@ class PeerRecord {
 
     public PeerState getPeerState() {
         return peerState;
+    }
+
+    public Boolean isEncryptedConnection() {
+        return encryptedConnection;
     }
 
     public boolean isTimeouted() {

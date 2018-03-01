@@ -26,6 +26,11 @@ import bt.protocol.Message;
 public interface ChannelPipeline {
 
     /**
+     * @since 0.0
+     */
+    boolean isEncrypted();
+
+    /**
      * @return Incoming message, if there is sufficient data to decode it, or null
      * @since 1.6
      */

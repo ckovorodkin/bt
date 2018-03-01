@@ -60,6 +60,11 @@ public interface PeerConnection extends Closeable {
     TorrentId getTorrentId();
 
     /**
+     * @since 0.0
+     */
+    boolean isEncrypted();
+
+    /**
      * Attempt to read an incoming message.
      *
      * Note that implementation may buffer all received data

@@ -17,7 +17,9 @@
 package bt.torrent;
 
 import bt.metainfo.TorrentId;
+import bt.net.IPeerConnectionPool;
 import bt.net.Peer;
+import bt.net.PeerConnection;
 import bt.statistic.TransferAmount;
 import bt.statistic.TransferAmountStatistic;
 import bt.torrent.data.DataWorker;
@@ -29,6 +31,7 @@ import bt.torrent.messaging.TorrentWorker;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.Set;
 
 public class DefaultTorrentSessionState implements TorrentSessionState {
@@ -39,6 +42,7 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
     private final PeerManager peerManager;
     private final DataWorker dataWorker;
     private final TransferAmountStatistic transferAmountStatistic;
+    private final IPeerConnectionPool peerConnectionPool;
 
     private final BitSet emptyPieces;
 
@@ -48,13 +52,15 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
                                       TorrentWorker worker,
                                       PeerManager peerManager,
                                       DataWorker dataWorker,
-                                      TransferAmountStatistic transferAmountStatistic) {
+                                      TransferAmountStatistic transferAmountStatistic,
+                                      IPeerConnectionPool peerConnectionPool) {
         this.torrentId = torrentId;
         this.descriptor = descriptor;
         this.worker = worker;
         this.peerManager = peerManager;
         this.dataWorker = dataWorker;
         this.transferAmountStatistic = transferAmountStatistic;
+        this.peerConnectionPool = peerConnectionPool;
         this.emptyPieces = new BitSet();
     }
 
@@ -151,6 +157,12 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
     @Override
     public boolean isDataWorkerOverload() {
         return dataWorker.isOverload();
+    }
+
+    @Override
+    public Optional<Boolean> isEncryptedConnection(Peer peer) {
+        final PeerConnection connection = peerConnectionPool.getConnection(peer, torrentId);
+        return Optional.ofNullable(connection).map(PeerConnection::isEncrypted);
     }
 
     @Override
