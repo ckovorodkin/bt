@@ -113,7 +113,7 @@ public class RequestProducer {
 
             BlockKey key = buildBlockKey(request.getPieceIndex(), request.getOffset(), request.getLength());
             messageConsumer.accept(request);
-            connectionState.getPendingRequests().add(key);
+            connectionState.getPendingRequests().put(key, System.currentTimeMillis());
         }
 
         if (requestQueue.isEmpty() //br
@@ -129,7 +129,7 @@ public class RequestProducer {
     private void resetConnection(ConnectionState connectionState, Consumer<Message> messageConsumer) {
         connectionState.setInitializedRequestQueue(false);
         connectionState.getRequestQueue().clear();
-        connectionState.getPendingRequests().forEach(key -> //br
+        connectionState.getPendingRequests().forEach((key, requestedAt) -> //br
                 messageConsumer.accept(new Cancel(key.getPieceIndex(), key.getOffset(), key.getLength())));
         connectionState.getPendingRequests().clear();
     }

@@ -50,7 +50,7 @@ public class ConnectionState {
     private long lastChoked;
 
     private Set<BlockKey> cancelledPeerRequests;
-    private Set<BlockKey> pendingRequests;
+    private Map<BlockKey, Long> pendingRequests;
     private Map<BlockKey, CompletableFuture<BlockWrite>> pendingWrites;
 
     private Queue<Request> requestQueue;
@@ -63,7 +63,7 @@ public class ConnectionState {
         this.peerChoking = true;
         this.shouldChoke = Optional.empty();
         this.cancelledPeerRequests = new HashSet<>();
-        this.pendingRequests = new HashSet<>();
+        this.pendingRequests = new HashMap<>();
         this.pendingWrites = new HashMap<>();
 
         this.requestQueue = new LinkedBlockingQueue<>();
@@ -216,7 +216,7 @@ public class ConnectionState {
      * @return Set of block request keys
      * @since 1.0
      */
-    public Set<BlockKey> getPendingRequests() {
+    public Map<BlockKey, Long> getPendingRequests() {
         return pendingRequests;
     }
 

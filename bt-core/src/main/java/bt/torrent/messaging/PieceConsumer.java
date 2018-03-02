@@ -64,9 +64,30 @@ public class PieceConsumer {
         Peer peer = context.getPeer();
         ConnectionState connectionState = context.getConnectionState();
 
+        final Long requestedAt = connectionState.getPendingRequests().remove(buildBlockKey(piece));
         // check that this block was requested in the first place
-        if (!checkBlockIsExpected(peer, connectionState, piece)) {
+        if (requestedAt == null) {
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace(
+                        "Discarding unexpected block from peer {}: piece index {{}}, offset {{}}, length {{}}",
+                        peer,
+                        piece.getPieceIndex(),
+                        piece.getOffset(),
+                        piece.getBlock().length
+                );
+            }
             return;
+        } else {
+            final long elapsed = System.currentTimeMillis() - requestedAt;
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("Received block after {} ms: piece index {{}}, offset {{}}, length {{}}",
+                        elapsed,
+                        piece.getPieceIndex(),
+                        piece.getOffset(),
+                        piece.getBlock().length
+                );
+            }
+            //todo: use 'elapsed' for control peer's queue (re-request abnormally delayed blocks).
         }
 
         if (connectionState.getCurrentAssignment().isPresent()) {
@@ -101,6 +122,8 @@ public class PieceConsumer {
             }
             return;
         }
+
+        connectionState.incrementDownloaded(piece.getBlock().length);
 
         addBlock(peer, connectionState, piece).whenComplete((block, error) -> {
             boolean verificationFuturePresent = false;
@@ -139,21 +162,11 @@ public class PieceConsumer {
         });
     }
 
-    private boolean checkBlockIsExpected(Peer peer, ConnectionState connectionState, Piece piece) {
-        boolean expected = connectionState.getPendingRequests().remove(buildBlockKey(piece));
-        if (!expected && LOGGER.isTraceEnabled()) {
-            LOGGER.trace("Discarding unexpected block {} from peer: {}", piece, peer);
-        }
-        return expected;
-    }
-
     private CompletableFuture<BlockWrite> addBlock(Peer peer, ConnectionState connectionState, Piece piece) {
         int pieceIndex = piece.getPieceIndex(),
                 offset = piece.getOffset();
 
         byte[] block = piece.getBlock();
-
-        connectionState.incrementDownloaded(block.length);
 
         CompletableFuture<BlockWrite> future = dataWorker.addBlock(peer, pieceIndex, offset, block);
         connectionState.getPendingWrites().put(buildBlockKey(piece), future);
