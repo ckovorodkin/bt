@@ -20,11 +20,8 @@ import bt.data.Bitfield;
 import bt.data.ChunkDescriptor;
 import bt.data.DataDescriptor;
 import bt.net.Peer;
-import bt.protocol.Have;
-import bt.protocol.Message;
 import bt.protocol.Piece;
 import bt.torrent.annotation.Consumes;
-import bt.torrent.annotation.Produces;
 import bt.torrent.data.BlockWrite;
 import bt.torrent.data.DataWorker;
 import org.slf4j.Logger;
@@ -33,8 +30,6 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.Consumer;
 
 import static bt.torrent.messaging.BlockKey.buildBlockKey;
 
@@ -50,13 +45,11 @@ public class PieceConsumer {
     private Bitfield bitfield;
     private final List<ChunkDescriptor> chunks;
     private DataWorker dataWorker;
-    private ConcurrentLinkedQueue<BlockWrite> completedBlocks;
 
     public PieceConsumer(DataDescriptor dataDescriptor, DataWorker dataWorker) {
         this.bitfield = dataDescriptor.getBitfield();
         this.chunks = dataDescriptor.getChunkDescriptors();
         this.dataWorker = dataWorker;
-        this.completedBlocks = new ConcurrentLinkedQueue<>();
     }
 
     @Consumes
@@ -144,13 +137,9 @@ public class PieceConsumer {
                 verificationFuturePresent = verificationFuture.isPresent();
                 if (verificationFuturePresent) {
                     verificationFuture.get().whenComplete((verified, error1) -> {
-                        try {
-                            if (error1 != null) {
-                                throw new RuntimeException("Failed to verify block", error1);
-                            }
-                            completedBlocks.add(block);
-                        } finally {
-                            connectionState.getPendingWrites().remove(buildBlockKey(piece));
+                        connectionState.getPendingWrites().remove(buildBlockKey(piece));
+                        if (error1 != null) {
+                            throw new RuntimeException("Failed to verify block", error1);
                         }
                     });
                 }
@@ -171,16 +160,5 @@ public class PieceConsumer {
         CompletableFuture<BlockWrite> future = dataWorker.addBlock(peer, pieceIndex, offset, block);
         connectionState.getPendingWrites().put(buildBlockKey(piece), future);
         return future;
-    }
-
-    @Produces
-    public void produce(Consumer<Message> messageConsumer) {
-        BlockWrite block;
-        while ((block = completedBlocks.poll()) != null) {
-            int pieceIndex = block.getPieceIndex();
-            if (bitfield.getPieceStatus(pieceIndex) == Bitfield.PieceStatus.COMPLETE_VERIFIED) {
-                messageConsumer.accept(new Have(pieceIndex));
-            }
-        }
     }
 }

@@ -16,26 +16,28 @@
 
 package bt.torrent.messaging;
 
+import bt.data.Bitfield;
 import bt.protocol.Have;
 import bt.protocol.Message;
+import bt.torrent.order.helper.RandomSetBit;
 
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.Supplier;
+import java.util.BitSet;
 
 /**
  * @since 1.0
  */
 class PieceAnnouncingPeerWorker implements PeerWorker {
     private final PeerWorker delegate;
-    private final Supplier<Iterable<? extends PeerWorker>> activePeerWorkersSupplier;
-    private final Queue<Have> pieceAnnouncements;
+    private final Bitfield bitfield;
+    private final BitSet publishedPieces;
 
-    PieceAnnouncingPeerWorker(
-            PeerWorker delegate, Supplier<Iterable<? extends PeerWorker>> activePeerWorkersSupplier) {
+    private final RandomSetBit randomSetBit;
+
+    PieceAnnouncingPeerWorker(PeerWorker delegate, Bitfield bitfield, BitSet publishedPieces) {
         this.delegate = delegate;
-        this.activePeerWorkersSupplier = activePeerWorkersSupplier;
-        this.pieceAnnouncements = new ConcurrentLinkedQueue<>();
+        this.bitfield = bitfield;
+        this.publishedPieces = publishedPieces;
+        this.randomSetBit = new RandomSetBit();
     }
 
     @Override
@@ -50,25 +52,23 @@ class PieceAnnouncingPeerWorker implements PeerWorker {
 
     @Override
     public Message get() {
-        Message message = pieceAnnouncements.poll();
-        if (message != null) {
-            //todo oe: low priority
-            return message;
+        final int pieceIndex = getUnpublishedPieceIndex();
+        if (pieceIndex != -1) {
+            //todo oe: low priority, limit bulk size
+            publishedPieces.set(pieceIndex);
+            return new Have(pieceIndex);
         }
-
-        message = delegate.get();
-        if (message != null && Have.class.equals(message.getClass())) {
-            Have have = (Have) message;
-            activePeerWorkersSupplier.get().forEach(worker -> {
-                if (this != worker && PieceAnnouncingPeerWorker.class.isAssignableFrom(worker.getClass())) {
-                    PieceAnnouncingPeerWorker.class.cast(worker).getPieceAnnouncements().add(have);
-                }
-            });
-        }
-        return message;
+        return delegate.get();
     }
 
-    private Queue<Have> getPieceAnnouncements() {
-        return pieceAnnouncements;
+    private int getUnpublishedPieceIndex() {
+        final BitSet unpublishedPieces = getUnpublishedPieces();
+        return randomSetBit.apply(unpublishedPieces);
+    }
+
+    private BitSet getUnpublishedPieces() {
+        final BitSet unpublishedPieces = bitfield.getPieces();
+        unpublishedPieces.andNot(publishedPieces);
+        return unpublishedPieces;
     }
 }

@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.BitSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
@@ -46,6 +47,8 @@ public class SocketPeerConnection implements PeerConnection {
 
     private final ChannelHandler handler;
 
+    private BitSet publishedPieces;
+
     private final AtomicLong lastActive;
 
     private final ReentrantLock readLock;
@@ -64,6 +67,7 @@ public class SocketPeerConnection implements PeerConnection {
         }
         this.remotePeer = remotePeer;
         this.handler = handler;
+        this.publishedPieces = null;
         this.lastActive = new AtomicLong();
         this.readLock = new ReentrantLock(true);
         this.condition = this.readLock.newCondition();
@@ -108,6 +112,22 @@ public class SocketPeerConnection implements PeerConnection {
     @Override
     public boolean isEncrypted() {
         return handler.isEncrypted();
+    }
+
+    @Override
+    public synchronized BitSet getPublishedPieces() {
+        if (publishedPieces == null) {
+            throw new IllegalStateException();
+        }
+        return (BitSet) publishedPieces.clone();
+    }
+
+    @Override
+    public synchronized void setPublishedPieces(BitSet publishedPieces) {
+        if (this.publishedPieces != null) {
+            throw new IllegalStateException();
+        }
+        this.publishedPieces = (BitSet) requireNonNull(publishedPieces).clone();
     }
 
     @Override

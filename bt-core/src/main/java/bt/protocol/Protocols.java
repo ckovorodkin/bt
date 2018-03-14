@@ -384,4 +384,21 @@ public class Protocols {
     public static BitSet copyOf(BitSet bitSet) {
         return (BitSet) bitSet.clone();
     }
+
+    /**
+     * @since 0.0
+     */
+    public static byte[] toByteArray(BitSet bitSet, int length) {
+        if (bitSet.cardinality() > length) {
+            throw new IllegalArgumentException();
+        }
+        final byte[] bytes = bitSet.toByteArray();
+        final int arrayLength = (length + 7) / 8;
+        if (bytes.length == arrayLength) {
+            return bytes;
+        }
+        final byte[] result = new byte[arrayLength];
+        System.arraycopy(bytes, 0, result, 0, bytes.length);
+        return result;
+    }
 }

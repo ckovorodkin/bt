@@ -20,6 +20,7 @@ import bt.metainfo.TorrentId;
 import bt.protocol.Message;
 
 import java.io.IOException;
+import java.util.BitSet;
 
 class WriteOnlyPeerConnection implements PeerConnection {
 
@@ -56,6 +57,16 @@ class WriteOnlyPeerConnection implements PeerConnection {
     @Override
     public boolean isEncrypted() {
         return delegate.isEncrypted();
+    }
+
+    @Override
+    public BitSet getPublishedPieces() {
+        return delegate.getPublishedPieces();
+    }
+
+    @Override
+    public void setPublishedPieces(BitSet publishedPieces) {
+        delegate.setPublishedPieces(publishedPieces);
     }
 
     @Override

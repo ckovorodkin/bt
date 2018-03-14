@@ -19,6 +19,7 @@ package bt.event;
 import bt.metainfo.TorrentId;
 import bt.net.Peer;
 
+import java.util.BitSet;
 import java.util.Objects;
 
 /**
@@ -32,18 +33,21 @@ public class PeerConnectedEvent extends BaseEvent implements TorrentEvent {
     private final Peer peer;
     private final boolean incoming;
     private final long connectionId;
+    private final BitSet publishedPieces;
 
     protected PeerConnectedEvent(long id,
                                  long timestamp,
                                  TorrentId torrentId,
                                  Peer peer,
                                  boolean incoming,
-                                 long connectionId) {
+                                 long connectionId,
+                                 BitSet publishedPieces) {
         super(id, timestamp);
         this.torrentId = Objects.requireNonNull(torrentId);
         this.peer = Objects.requireNonNull(peer);
         this.incoming = incoming;
         this.connectionId = connectionId;
+        this.publishedPieces = Objects.requireNonNull(publishedPieces);
     }
 
     @Override
@@ -72,10 +76,17 @@ public class PeerConnectedEvent extends BaseEvent implements TorrentEvent {
         return connectionId;
     }
 
+    /**
+     * @since 0.0
+     */
+    public BitSet getPublishedPieces() {
+        return (BitSet) publishedPieces.clone();
+    }
+
     @Override
     public String toString() {
         return "[" + this.getClass().getSimpleName() + "] id {" + getId() + "}, timestamp {" + getTimestamp() +
                 "}, torrent {" + torrentId + "}, peer {" + peer + "}, incoming {" + incoming + "}, connectionId {"
-                + connectionId + "}";
+                + connectionId + "}, publishedPieces {" + publishedPieces.cardinality() + "}";
     }
 }

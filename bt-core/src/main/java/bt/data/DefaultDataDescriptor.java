@@ -31,6 +31,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executors;
 
 class DefaultDataDescriptor implements DataDescriptor {
 
@@ -138,7 +139,7 @@ class DefaultDataDescriptor implements DataDescriptor {
 
     private Bitfield buildBitfield(List<ChunkDescriptor> chunks) {
         Bitfield bitfield = new Bitfield(chunks.size());
-        verifier.verify(chunks, bitfield);
+        Executors.newSingleThreadExecutor().submit(() -> verifier.verify(chunks, bitfield));
         return bitfield;
     }
 

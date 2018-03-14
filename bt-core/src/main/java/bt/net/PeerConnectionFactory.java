@@ -184,6 +184,7 @@ public class PeerConnectionFactory implements IPeerConnectionFactory {
         }
         boolean inited = initConnection(connection, connectionHandler);
         if (inited) {
+            assert connection.getPublishedPieces() != null;
             subscribeHandler(connection.getTorrentId(), channelHandler);
             return ConnectionResult.success(connection);
         } else {

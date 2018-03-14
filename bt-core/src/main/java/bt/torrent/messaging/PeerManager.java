@@ -102,7 +102,13 @@ public class PeerManager {
         });
         eventSource.onPeerConnected(e -> {
             if (torrentId.equals(e.getTorrentId())) {
-                onPeerConnected(e.getTimestamp(), e.getPeer(), e.isIncoming(), e.getConnectionId());
+                onPeerConnected(
+                        e.getTimestamp(),
+                        e.getPeer(),
+                        e.isIncoming(),
+                        e.getConnectionId(),
+                        e.getPublishedPieces()
+                );
             }
         });
         eventSource.onPeerDisconnected(e -> {
@@ -189,7 +195,11 @@ public class PeerManager {
         peerInfo.setPeerState(timestamp, CONNECTING, DISCONNECTED);
     }
 
-    private synchronized void onPeerConnected(long timestamp, Peer peer, boolean incoming, long connectionId) {
+    private synchronized void onPeerConnected(long timestamp,
+                                              Peer peer,
+                                              boolean incoming,
+                                              long connectionId,
+                                              BitSet publishedPieces) {
         final PeerInfo peerInfo;
         if (incoming) {
             peerInfo = getPeerInfo(peer, INCOMING);
@@ -216,7 +226,7 @@ public class PeerManager {
 
         connectedPeerInfoMap.putIfAbsent(peer, peerInfo);
 
-        torrentWorker.addPeer(peer);
+        torrentWorker.addPeer(peer, publishedPieces);
     }
 
     private synchronized void onPeerDisconnected(long timestamp, Peer peer, long connectionId) {

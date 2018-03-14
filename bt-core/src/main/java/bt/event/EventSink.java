@@ -47,7 +47,7 @@ public interface EventSink {
      *
      * @since 1.5
      */
-    void firePeerConnected(TorrentId torrentId, Peer peer, boolean incoming, long connectionId);
+    void firePeerConnected(TorrentId torrentId, Peer peer, boolean incoming, long connectionId, BitSet publishedPieces);
 
     /**
      * Generate event, that a connection with some peer has been terminated.

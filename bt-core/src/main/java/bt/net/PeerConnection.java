@@ -21,6 +21,7 @@ import bt.protocol.Message;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.BitSet;
 
 /**
  * Connection with a remote peer.
@@ -63,6 +64,16 @@ public interface PeerConnection extends Closeable {
      * @since 0.0
      */
     boolean isEncrypted();
+
+    /**
+     * @since 0.0
+     */
+    BitSet getPublishedPieces();
+
+    /**
+     * @since 0.0
+     */
+    void setPublishedPieces(BitSet publishedPieces);
 
     /**
      * Attempt to read an incoming message.

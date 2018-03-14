@@ -67,11 +67,15 @@ public class EventBus implements EventSink, EventSource {
     }
 
     @Override
-    public synchronized void firePeerConnected(TorrentId torrentId, Peer peer, boolean incoming, long connectionId) {
+    public synchronized void firePeerConnected(TorrentId torrentId,
+                                               Peer peer,
+                                               boolean incoming,
+                                               long connectionId,
+                                               BitSet publishedPieces) {
         long timestamp = System.currentTimeMillis();
         if (hasListeners(PeerConnectedEvent.class)) {
             long id = nextId();
-            fireEvent(new PeerConnectedEvent(id, timestamp, torrentId, peer, incoming, connectionId));
+            fireEvent(new PeerConnectedEvent(id, timestamp, torrentId, peer, incoming, connectionId, publishedPieces));
         }
     }
 

@@ -18,11 +18,13 @@ package bt.net;
 
 import bt.data.Bitfield;
 import bt.protocol.Handshake;
+import bt.protocol.Protocols;
 import bt.torrent.TorrentDescriptor;
 import bt.torrent.TorrentRegistry;
 import com.google.inject.Inject;
 
 import java.io.IOException;
+import java.util.BitSet;
 import java.util.Optional;
 
 /**
@@ -46,9 +48,12 @@ public class BitfieldConnectionHandler implements HandshakeHandler {
                 && descriptorOptional.get().getDataDescriptor() != null) {
             Bitfield bitfield = descriptorOptional.get().getDataDescriptor().getBitfield();
 
-            if (bitfield.getPiecesComplete() > 0) {
+            final BitSet completeVerified = bitfield.getPieces();
+            connection.setPublishedPieces(completeVerified);
+            if (completeVerified.cardinality() > 0) {
                 Peer peer = connection.getRemotePeer();
-                bt.protocol.Bitfield bitfieldMessage = new bt.protocol.Bitfield(bitfield.getBitmask());
+                bt.protocol.Bitfield bitfieldMessage =
+                        new bt.protocol.Bitfield(Protocols.toByteArray(completeVerified, bitfield.getPiecesTotal()));
                 try {
                     connection.postMessage(bitfieldMessage);
                 } catch (IOException e) {

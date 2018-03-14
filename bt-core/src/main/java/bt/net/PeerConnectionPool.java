@@ -159,7 +159,8 @@ public class PeerConnectionPool implements IPeerConnectionPool {
                     newConnection.getTorrentId(),
                     newConnection.getRemotePeer(),
                     newConnection.isIncoming(),
-                    newConnection.getId()
+                    newConnection.getId(),
+                    newConnection.getPublishedPieces()
             );
         }
         return added;

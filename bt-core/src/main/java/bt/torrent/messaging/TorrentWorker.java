@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.BitSet;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -38,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import static java.util.Collections.unmodifiableSet;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -60,7 +62,7 @@ public class TorrentWorker {
     private ConcurrentMap<Peer, PeerWorker> peerMap;
     private final int MAX_CONCURRENT_ACTIVE_CONNECTIONS;
     private Map<Peer, Long> timeoutedPeers;
-    private Queue<Peer> disconnectedPeers;
+    private Queue<PeerEvent> peerEvents;
     private Map<Peer, Message> interestUpdates;
     private long lastUpdatedAssignments;
 
@@ -83,7 +85,7 @@ public class TorrentWorker {
         this.peerMap = new ConcurrentHashMap<>();
         this.MAX_CONCURRENT_ACTIVE_CONNECTIONS = config.getMaxConcurrentlyActivePeerConnectionsPerTorrent();
         this.timeoutedPeers = new ConcurrentHashMap<>();
-        this.disconnectedPeers = new LinkedBlockingQueue<>();
+        this.peerEvents = new LinkedBlockingQueue<>();
         this.interestUpdates = new ConcurrentHashMap<>();
 
         this.bitfield = requireNonNull(bitfield);
@@ -103,20 +105,30 @@ public class TorrentWorker {
      *
      * @since 1.0
      */
-    void addPeer(Peer peer) {
-        final PeerWorker worker = createPeerWorker(peer);
+    void addPeer(Peer peer, BitSet publishedPieces) {
+        peerEvents.add(new PeerEvent.ConnectedPeerEvent(peer, publishedPieces));
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Queued connection addition for peer: " + peer);
+        }
+    }
+
+    private void process(PeerEvent.ConnectedPeerEvent peerEvent) {
+        final Peer peer = peerEvent.getPeer();
+        final BitSet publishedPieces = peerEvent.getPublishedPieces();
+        final PeerWorker worker = createPeerWorker(peer, publishedPieces);
+        assert !peerMap.containsKey(peer);
+        assert !timeoutedPeers.containsKey(peer);
         final PeerWorker existing = peerMap.putIfAbsent(peer, worker);
-        if (existing == null) {
-            dispatcher.addMessageConsumer(torrentId, peer, dispatcherId, message -> consume(peer, message));
-            dispatcher.addMessageSupplier(torrentId, peer, dispatcherId, () -> produce(peer));
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("Added connection for peer: " + peer);
-            }
+        assert existing == null;
+        dispatcher.addMessageConsumer(torrentId, peer, dispatcherId, message -> consume(peer, message));
+        dispatcher.addMessageSupplier(torrentId, peer, dispatcherId, () -> produce(peer));
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Added connection for peer: " + peer);
         }
     }
 
     private void maintain() {
-        processDisconnectedPeers();
+        processPeerEvents();
         processTimeoutedPeers();
     }
 
@@ -219,23 +231,40 @@ public class TorrentWorker {
         return System.currentTimeMillis() - lastUpdatedAssignments;
     }
 
-    private void processDisconnectedPeers() {
-        Peer disconnectedPeer;
-        while ((disconnectedPeer = disconnectedPeers.poll()) != null) {
-            dispatcher.removeMessageConsumer(torrentId, disconnectedPeer, dispatcherId);
-            dispatcher.removeMessageSupplier(torrentId, disconnectedPeer, dispatcherId);
-            Assignment assignment = assignments.get(disconnectedPeer);
-            if (assignment != null) {
-                assignments.remove(assignment);
-                if (LOGGER.isTraceEnabled()) {
-                    LOGGER.trace(
-                            "Peer assignment removed due to DISCONNECT: peer {}, assignment {}",
-                            disconnectedPeer,
-                            assignment
-                    );
-                }
+    private void processPeerEvents() {
+        PeerEvent peerEvent;
+        while ((peerEvent = peerEvents.poll()) != null) {
+            final Class<? extends PeerEvent> peerEventClass = peerEvent.getClass();
+            if (peerEventClass == PeerEvent.ConnectedPeerEvent.class) {
+                process((PeerEvent.ConnectedPeerEvent) peerEvent);
+            } else if (peerEventClass == PeerEvent.DisconnectedPeerEvent.class) {
+                process((PeerEvent.DisconnectedPeerEvent) peerEvent);
+            } else {
+                throw new UnsupportedOperationException(String.format("Unsupported event class: %s",
+                        peerEventClass.getName()
+                ));
             }
-            timeoutedPeers.remove(disconnectedPeer);
+        }
+    }
+
+    private void process(PeerEvent.DisconnectedPeerEvent peerEvent) {
+        final Peer disconnectedPeer = peerEvent.getPeer();
+        dispatcher.removeMessageConsumer(torrentId, disconnectedPeer, dispatcherId);
+        dispatcher.removeMessageSupplier(torrentId, disconnectedPeer, dispatcherId);
+        Assignment assignment = assignments.get(disconnectedPeer);
+        if (assignment != null) {
+            assignments.remove(assignment);
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace(
+                        "Peer assignment removed due to DISCONNECT: peer {}, assignment {}",
+                        disconnectedPeer,
+                        assignment
+                );
+            }
+        }
+        timeoutedPeers.remove(disconnectedPeer);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Removed connection for peer: " + disconnectedPeer);
         }
     }
 
@@ -257,7 +286,7 @@ public class TorrentWorker {
 
         peerMap.forEach((peer, worker) -> {
             boolean timeouted = timeoutedPeers.containsKey(peer);
-            boolean disconnected = disconnectedPeers.contains(peer);
+            boolean disconnected = !peerMap.containsKey(peer);      //todo oe: review async disconnect
             if (!timeouted && !disconnected) {
                 if (worker.getConnectionState().isPeerChoking()) {
                     choking.add(peer);
@@ -297,9 +326,9 @@ public class TorrentWorker {
         lastUpdatedAssignments = System.currentTimeMillis();
     }
 
-    private PieceAnnouncingPeerWorker createPeerWorker(Peer peer) {
+    private PeerWorker createPeerWorker(Peer peer, BitSet publishedPieces) {
         final PeerWorker peerWorker = peerWorkerFactory.createPeerWorker(torrentId, peer);
-        return new PieceAnnouncingPeerWorker(peerWorker, () -> peerMap.values());
+        return new PieceAnnouncingPeerWorker(peerWorker, bitfield, publishedPieces);
     }
 
     /**
@@ -310,9 +339,9 @@ public class TorrentWorker {
     public void removePeer(Peer peer) {
         PeerWorker removed = peerMap.remove(peer);
         if (removed != null) {
-            disconnectedPeers.add(peer);
+            peerEvents.add(new PeerEvent.DisconnectedPeerEvent(peer, removed));
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("Removed connection for peer: " + peer);
+                LOGGER.debug("Queued connection removal for peer: " + peer);
             }
         }
     }
@@ -323,7 +352,7 @@ public class TorrentWorker {
      * @since 1.0
      */
     public Set<Peer> getPeers() {
-        return peerMap.keySet();
+        return unmodifiableSet(peerMap.keySet());
     }
 
     public Set<Peer> getActivePeers() {
@@ -346,4 +375,41 @@ public class TorrentWorker {
         return (worker == null) ? null : worker.getConnectionState();
     }
 
+    private static abstract class PeerEvent {
+        private final Peer peer;
+
+        protected PeerEvent(Peer peer) {
+            this.peer = requireNonNull(peer);
+        }
+
+        public Peer getPeer() {
+            return peer;
+        }
+
+        private static class ConnectedPeerEvent extends PeerEvent {
+            private final BitSet publishedPieces;
+
+            public ConnectedPeerEvent(Peer peer, BitSet publishedPieces) {
+                super(peer);
+                this.publishedPieces = requireNonNull(publishedPieces);
+            }
+
+            public BitSet getPublishedPieces() {
+                return publishedPieces;
+            }
+        }
+
+        private static class DisconnectedPeerEvent extends PeerEvent {
+            private final PeerWorker peerWorker;
+
+            public DisconnectedPeerEvent(Peer peer, PeerWorker peerWorker) {
+                super(peer);
+                this.peerWorker = requireNonNull(peerWorker);
+            }
+
+            public PeerWorker getPeerWorker() {
+                return peerWorker;
+            }
+        }
+    }
 }
