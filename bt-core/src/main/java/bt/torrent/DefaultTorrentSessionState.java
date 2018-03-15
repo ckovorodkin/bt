@@ -70,6 +70,15 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
     }
 
     @Override
+    public boolean isComplete() {
+        if (descriptor.getDataDescriptor() == null) {
+            return false;
+        }
+        final Bitfield bitfield = descriptor.getDataDescriptor().getBitfield();
+        return bitfield.getPiecesVerified() == bitfield.getPiecesTotal() && bitfield.getPiecesRemaining() == 0;
+    }
+
+    @Override
     public int getPiecesTotal() {
         if (descriptor.getDataDescriptor() != null) {
             return descriptor.getDataDescriptor().getBitfield().getPiecesTotal();

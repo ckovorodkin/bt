@@ -62,7 +62,7 @@ public class ProcessTorrentStage<C extends TorrentContext> extends TerminateOnEr
         while (descriptor.isActive()) {
             try {
                 Thread.sleep(1000);
-                if (context.getState().get().getPiecesRemaining() == 0) {
+                if (context.getState().get().isComplete()) {
                     complete(context);
                     break;
                 }

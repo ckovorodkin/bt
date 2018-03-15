@@ -34,6 +34,11 @@ import java.util.Set;
 public interface TorrentSessionState {
 
     /**
+     * @since 0.0
+     */
+    boolean isComplete();
+
+    /**
      * @return Total number of pieces in the torrent
      * @since 1.0
      */

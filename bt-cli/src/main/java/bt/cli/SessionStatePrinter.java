@@ -286,7 +286,7 @@ public class SessionStatePrinter {
             final double ratio = sessionState.getRatio();
             graphics.putString(0, ++row, getPiecesBar(sessionState.getPieces(), sessionState.getPiecesTotal(), ratio));
 
-            boolean complete = (sessionState.getPiecesRemaining() == 0);
+            boolean complete = sessionState.isComplete();
             if (complete) {
                 graphics.putString(0, ++row, "Download is complete. Press Ctrl-C to stop seeding and exit.");
             } else {

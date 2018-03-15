@@ -157,6 +157,14 @@ public class Bitfield {
     }
 
     /**
+     * @return Number of pieces that have been verified.
+     * @since 0.0
+     */
+    public int getPiecesVerified() {
+        return getVerified().cardinality();
+    }
+
+    /**
      * @return Number of pieces that have status {@link PieceStatus#COMPLETE_VERIFIED}.
      * @since 1.0
      */
