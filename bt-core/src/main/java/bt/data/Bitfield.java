@@ -274,6 +274,19 @@ public class Bitfield {
     }
 
     /**
+     * @since 0.0
+     */
+    public boolean isVerified(int pieceIndex) {
+        validatePieceIndex(pieceIndex);
+        lock.lock();
+        try {
+            return verified.get(pieceIndex);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
      * Mark piece as verified.
      *
      * @param pieceIndex Piece index (0-based)
