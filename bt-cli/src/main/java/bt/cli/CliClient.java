@@ -104,10 +104,12 @@ public class CliClient  {
                 return portOverride.orElseGet(super::getAcceptorPort);
             }
 
+/*
             @Override
             public int getNumOfHashingThreads() {
                 return Runtime.getRuntime().availableProcessors();
             }
+*/
 
             @Override
             public EncryptionPolicy getEncryptionPolicy() {

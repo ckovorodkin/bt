@@ -37,20 +37,26 @@ public class Bitfield {
      * @since 1.0
      */
     public enum PieceStatus {
-        /*EMPTY, PARTIAL,*/INCOMPLETE, /*COMPLETE,*/ COMPLETE_VERIFIED
+        /*EMPTY, PARTIAL,*/INCOMPLETE, COMPLETE, COMPLETE_VERIFIED
     }
 
     /**
-     * BitSet indicating availability of pieces.
-     * If the n-th bit is set, then the n-th piece is complete and verified.
+     * BitSet indicating verification of pieces.
+     * If the n-th bit is set, then the n-th piece is verified.
      */
-    private final BitSet pieces;
+    private final BitSet verified;
 
     /**
      * Bitmask indicating pieces that should be skipped.
      * If the n-th bit is set, then the n-th piece should be skipped.
      */
     private volatile BitSet skipped;
+
+    /**
+     * BitSet indicating availability of pieces.
+     * If the n-th bit is set, then the n-th piece is complete.
+     */
+    private final BitSet complete;
 
     /**
      * Total number of pieces in torrent.
@@ -66,28 +72,44 @@ public class Bitfield {
      * @since 1.0
      */
     public Bitfield(int piecesTotal) {
-        this.pieces = new BitSet(piecesTotal);
+        this.verified = new BitSet(piecesTotal);
+        this.skipped = new BitSet(piecesTotal);
+        this.complete = new BitSet(piecesTotal);
         this.piecesTotal = piecesTotal;
         this.lock = new ReentrantLock();
     }
 
     /**
-     * @return Bitmask that describes status of all pieces.
-     *         If the n-th bit is set, then the n-th piece
-     *         is in {@link PieceStatus#COMPLETE_VERIFIED} status.
-     * @since 1.0
+     * @since 0.0
      */
-    public byte[] getBitmask() {
+    public BitSet getVerified() {
         lock.lock();
         try {
-            final byte[] bytes = pieces.toByteArray();
-            final int length = (piecesTotal + 7) / 8;
-            if (bytes.length == length) {
-                return bytes;
-            }
-            final byte[] result = new byte[length];
-            System.arraycopy(bytes, 0, result, 0, bytes.length);
-            return result;
+            return (BitSet) verified.clone();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * @since 0.0
+     */
+    public BitSet getSkipped() {
+        lock.lock();
+        try {
+            return (BitSet) skipped.clone();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * @since 0.0
+     */
+    public BitSet getComplete() {
+        lock.lock();
+        try {
+            return (BitSet) complete.clone();
         } finally {
             lock.unlock();
         }
@@ -95,14 +117,32 @@ public class Bitfield {
 
     /**
      * @return BitSet that describes status of all pieces.
-     *         If the n-th bit is set, then the n-th piece
-     *         is in {@link PieceStatus#COMPLETE_VERIFIED} status.
+     * If the n-th bit is set, then the n-th piece
+     * is in {@link PieceStatus#COMPLETE_VERIFIED} status.
      * @since 0.0
      */
-    public BitSet getPieces() {
+    public BitSet getCompleteVerified() {
         lock.lock();
         try {
-            return (BitSet) pieces.clone();
+            final BitSet completeVerified = (BitSet) complete.clone();
+            completeVerified.and(verified);
+            return completeVerified;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * @return verified && !skipped && !complete
+     * @since 0.0
+     */
+    public BitSet getRemaining() {
+        lock.lock();
+        try {
+            final BitSet remaining = (BitSet) verified.clone();
+            remaining.andNot(skipped);
+            remaining.andNot(complete);
+            return remaining;
         } finally {
             lock.unlock();
         }
@@ -120,13 +160,8 @@ public class Bitfield {
      * @return Number of pieces that have status {@link PieceStatus#COMPLETE_VERIFIED}.
      * @since 1.0
      */
-    public int getPiecesComplete() {
-        lock.lock();
-        try {
-            return pieces.cardinality();
-        } finally {
-            lock.unlock();
-        }
+    public int getPiecesCompleteVerified() {
+        return getCompleteVerified().cardinality();
     }
 
     /**
@@ -134,12 +169,7 @@ public class Bitfield {
      * @since 1.7
      */
     public int getPiecesIncomplete() {
-        lock.lock();
-        try {
-            return getPiecesTotal() - pieces.cardinality();
-        } finally {
-            lock.unlock();
-        }
+        return piecesTotal - getPiecesCompleteVerified();
     }
 
     /**
@@ -148,18 +178,7 @@ public class Bitfield {
      * @since 1.0
      */
     public int getPiecesRemaining() {
-        lock.lock();
-        try {
-            if (skipped == null) {
-                return getPiecesTotal() - getPiecesComplete();
-            } else {
-                BitSet bitmask = getPieces();
-                bitmask.or(skipped);
-                return getPiecesTotal() - bitmask.cardinality();
-            }
-        } finally {
-            lock.unlock();
-        }
+        return getRemaining().cardinality();
     }
 
     /**
@@ -167,10 +186,6 @@ public class Bitfield {
      * @since 1.7
      */
     public int getPiecesSkipped() {
-        if (skipped == null) {
-            return 0;
-        }
-
         lock.lock();
         try {
             return skipped.cardinality();
@@ -184,16 +199,7 @@ public class Bitfield {
      * @since 1.7
      */
     public int getPiecesNotSkipped() {
-        if (skipped == null) {
-            return piecesTotal;
-        }
-
-        lock.lock();
-        try {
-            return piecesTotal - skipped.cardinality();
-        } finally {
-            lock.unlock();
-        }
+        return piecesTotal - getPiecesSkipped();
     }
 
     /**
@@ -205,15 +211,17 @@ public class Bitfield {
     public PieceStatus getPieceStatus(int pieceIndex) {
         validatePieceIndex(pieceIndex);
 
-        boolean verified;
+        final boolean verified;
+        final boolean complete;
         lock.lock();
         try {
-            verified = pieces.get(pieceIndex);
+            verified = this.verified.get(pieceIndex);
+            complete = this.complete.get(pieceIndex);
         } finally {
             lock.unlock();
         }
 
-        return verified ? PieceStatus.COMPLETE_VERIFIED : PieceStatus.INCOMPLETE;
+        return complete ? verified ? PieceStatus.COMPLETE_VERIFIED : PieceStatus.COMPLETE : PieceStatus.INCOMPLETE;
     }
 
     /**
@@ -225,7 +233,24 @@ public class Bitfield {
      */
     public boolean isComplete(int pieceIndex) {
         PieceStatus pieceStatus = getPieceStatus(pieceIndex);
-        return (/*pieceStatus == PieceStatus.COMPLETE ||*/ pieceStatus == PieceStatus.COMPLETE_VERIFIED);
+        return (pieceStatus == PieceStatus.COMPLETE || pieceStatus == PieceStatus.COMPLETE_VERIFIED);
+    }
+
+    /**
+     * Mark piece as complete.
+     *
+     * @param pieceIndex Piece index (0-based)
+     * @since 0.0
+     */
+    public void markComplete(int pieceIndex) {
+        validatePieceIndex(pieceIndex);
+
+        lock.lock();
+        try {
+            complete.set(pieceIndex);
+        } finally {
+            lock.unlock();
+        }
     }
 
     /**
@@ -233,26 +258,28 @@ public class Bitfield {
      *
      * @param pieceIndex Piece index (0-based)
      * @return true if the piece has been downloaded and verified
-     * @since 1.1
+     * @since 0.0
      */
-    public boolean isVerified(int pieceIndex) {
+    public boolean isCompleteVerified(int pieceIndex) {
         PieceStatus pieceStatus = getPieceStatus(pieceIndex);
         return pieceStatus == PieceStatus.COMPLETE_VERIFIED;
     }
 
     /**
-     * Mark piece as complete and verified.
+     * Mark piece as verified.
      *
      * @param pieceIndex Piece index (0-based)
-     * @see DataDescriptor#getChunkDescriptors()
-     * @since 1.0
+     * @since 0.0
      */
-    public void markVerified(int pieceIndex) {
+    public void markVerified(int pieceIndex, boolean correct) {
         validatePieceIndex(pieceIndex);
 
         lock.lock();
         try {
-            pieces.set(pieceIndex);
+            verified.set(pieceIndex);
+            if (!correct) {
+                complete.clear(pieceIndex);
+            }
         } finally {
             lock.unlock();
         }
@@ -275,9 +302,6 @@ public class Bitfield {
 
         lock.lock();
         try {
-            if (skipped == null) {
-                skipped = new BitSet(getPiecesTotal());
-            }
             skipped.set(pieceIndex);
         } finally {
             lock.unlock();
@@ -292,13 +316,11 @@ public class Bitfield {
     public void unskip(int pieceIndex) {
         validatePieceIndex(pieceIndex);
 
-        if (skipped != null) {
-            lock.lock();
-            try {
-                skipped.clear(pieceIndex);
-            } finally {
-                lock.unlock();
-            }
+        lock.lock();
+        try {
+            skipped.clear(pieceIndex);
+        } finally {
+            lock.unlock();
         }
     }
 }

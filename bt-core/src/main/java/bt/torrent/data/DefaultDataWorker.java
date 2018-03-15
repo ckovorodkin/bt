@@ -92,7 +92,7 @@ class DefaultDataWorker implements DataWorker {
         pendingTasksCount.incrementAndGet();
         return CompletableFuture.supplyAsync(() -> {
             try {
-                if (data.getBitfield().isVerified(pieceIndex)) {
+                if (data.getBitfield().isCompleteVerified(pieceIndex)) {
                     if (LOGGER.isTraceEnabled()) {
                         LOGGER.trace(
                                 "Rejecting request to write block because the chunk is already complete and verified: "
@@ -113,16 +113,15 @@ class DefaultDataWorker implements DataWorker {
                 CompletableFuture<Boolean> verificationFuture = null;
                 if (chunk.isComplete()) {
                     pendingTasksCount.incrementAndGet();
+                    data.getBitfield().markComplete(pieceIndex);
                     verificationFuture = CompletableFuture.supplyAsync(() -> {
                         try {
-                            boolean verified = verifier.verify(chunk);
+                            final boolean correct = verifier.verify(chunk);
                             if (LOGGER.isTraceEnabled()) {
-                                LOGGER.trace("Chunk verification result: {}, piece index {{}}", verified, pieceIndex);
+                                LOGGER.trace("Chunk verification result: {}, piece index {{}}", correct, pieceIndex);
                             }
-                            if (verified) {
-                                data.getBitfield().markVerified(pieceIndex);
-                            }
-                            return verified;
+                            data.getBitfield().markVerified(pieceIndex, correct);
+                            return correct;
                         } finally {
                             pendingTasksCount.decrementAndGet();
                         }

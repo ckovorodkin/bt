@@ -139,6 +139,7 @@ class DefaultDataDescriptor implements DataDescriptor {
     private Bitfield buildBitfield(List<ChunkDescriptor> chunks) {
         Bitfield bitfield = new Bitfield(chunks.size());
         verifier.verify(chunks, bitfield);
+        //new Thread(() -> verifier.verify(chunks, bitfield)).start();
         return bitfield;
     }
 

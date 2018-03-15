@@ -23,25 +23,31 @@ import org.junit.rules.ExternalResource;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+
+import static java.nio.file.Files.createDirectories;
+import static java.nio.file.Files.delete;
+import static java.nio.file.Files.walk;
 
 // TODO: replace this with in-memory storage
 class TestFileSystemStorage extends ExternalResource implements Storage {
 
     private static final String ROOT_PATH = "target/rt";
 
-    private File rootDirectory;
+    private final Path rootDirectory;
     private volatile Storage delegate;
     private final Object lock;
 
     private Collection<StorageUnit> units;
 
     public TestFileSystemStorage() {
-        rootDirectory = new File(ROOT_PATH);
-        if (!rootDirectory.mkdirs()) {
-            throw new RuntimeException("Failed to create directories: " + rootDirectory);
+        rootDirectory = new File(ROOT_PATH).getAbsoluteFile().toPath();
+        try {
+            createDirectories(rootDirectory);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to create directories: " + rootDirectory, e);
         }
         units = new ArrayList<>();
         lock = new Object();
@@ -66,7 +72,7 @@ class TestFileSystemStorage extends ExternalResource implements Storage {
     }
 
     public File getRoot() {
-        return rootDirectory;
+        return rootDirectory.toFile();
     }
 
     @Override
@@ -81,20 +87,13 @@ class TestFileSystemStorage extends ExternalResource implements Storage {
         }
     }
 
-    private void deleteRecursive(File file) throws IOException {
-        if (!file.exists()) {
-            return;
-        }
-
-        if (file.isDirectory()) {
-            File[] children = file.listFiles();
-            if (children != null) {
-                for (File child : children) {
-                    deleteRecursive(child);
-                }
+    private void deleteRecursive(Path root) throws IOException {
+        walk(root).sorted((o1, o2) -> o2.getNameCount() - o1.getNameCount()).forEach(path -> {
+            try {
+                delete(path);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
-        }
-
-        Files.delete(file.toPath());
+        });
     }
 }

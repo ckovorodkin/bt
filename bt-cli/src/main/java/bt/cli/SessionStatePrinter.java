@@ -197,9 +197,7 @@ public class SessionStatePrinter {
 
     private void printTorrentInfo() {
         printTorrentNameAndSize(torrent);
-        char[] chars = new char[graphics.getSize().getColumns()];
-        Arrays.fill(chars, '-');
-        graphics.putString(0, 1, String.valueOf(chars));
+        fillLine(1, '-');
     }
 
     private void printTorrentNameAndSize(Optional<Torrent> torrent) {
@@ -248,11 +246,24 @@ public class SessionStatePrinter {
 
             printTorrentNameAndSize(torrent);
 
+            int row = 1;
+
+            final long torrentSize = torrent.isPresent() ? torrent.get().getSize() : 0;
+            final long selectDownload = sessionState.getSelectDownload();
+            final long leftDownload = sessionState.getLeftDownload();
+            final long leftVerify = sessionState.getLeftVerify();
+            graphics.putString(0, ++row, String.format("Total: %9s, selected: %9s, left: %9s, verify: %9s",
+                    getDisplayString(AMOUNT_UNIT_FORMAT, torrentSize, units, false),
+                    getDisplayString(AMOUNT_UNIT_FORMAT, selectDownload, units, false),
+                    getDisplayString(AMOUNT_UNIT_FORMAT, leftDownload, units, false),
+                    getDisplayString(AMOUNT_UNIT_FORMAT, leftVerify, units, false)
+            ));
+
             String elapsedTime = getElapsedTime(currentTimeMillis);
             String remainingTime = getRemainingTime(
                     downloadRate,
                     sessionState.getPiecesRemaining(), sessionState.getPiecesNotSkipped());
-            graphics.putString(0, 2, String.format(DURATION_INFO, elapsedTime, remainingTime));
+            graphics.putString(0, ++row, String.format(DURATION_INFO, elapsedTime, remainingTime));
 
             int peerCount = sessionState.getConnectedPeers().size();
             int activePeerCount = sessionState.getActivePeers().size();
@@ -265,19 +276,21 @@ public class SessionStatePrinter {
                     getDisplayString(RATE_UNIT_FORMAT, uploadRate, units, false),
                     getDisplayString(AMOUNT_UNIT_FORMAT, uploaded, units)
             );
-            graphics.putString(0, 3, sessionInfo);
+            graphics.putString(0, ++row, sessionInfo);
 
             int completed = sessionState.getPiecesComplete();
             double completePercents = getCompletePercentage(sessionState.getPiecesTotal(), completed);
             double requiredPercents = getTargetPercentage(sessionState.getPiecesTotal(), completed, sessionState.getPiecesRemaining());
-            graphics.putString(0, 4, getProgressBar(completePercents, requiredPercents));
+            graphics.putString(0, ++row, getProgressBar(completePercents, requiredPercents));
 
             final double ratio = sessionState.getRatio();
-            graphics.putString(0, 5, getPiecesBar(sessionState.getPieces(), sessionState.getPiecesTotal(), ratio));
+            graphics.putString(0, ++row, getPiecesBar(sessionState.getPieces(), sessionState.getPiecesTotal(), ratio));
 
             boolean complete = (sessionState.getPiecesRemaining() == 0);
             if (complete) {
-                graphics.putString(0, 6, "Download is complete. Press Ctrl-C to stop seeding and exit.");
+                graphics.putString(0, ++row, "Download is complete. Press Ctrl-C to stop seeding and exit.");
+            } else {
+                fillLine(++row, ' ');
             }
 
             final Collection<PeerInfoView> peerInfos = sessionState.getPeerInfos();
@@ -292,7 +305,8 @@ public class SessionStatePrinter {
             final int connectedSeedCount = getSeeds(connectedPeerInfos);
             final int connectedLeachCount = connectedPeerCount - connectedSeedCount;
 
-            graphics.putString(0, 7, String.format(
+            fillLine(++row, ' ');
+            graphics.putString(0, row, String.format(
                     "Discovered: %d, online: %d, connected: %d, seeds: %d (%d), leeches: %d (%d)",
                     peerInfos.size(),
                     onlinePeerCount,
@@ -305,19 +319,21 @@ public class SessionStatePrinter {
 
             final boolean dataWorkerOverload = sessionState.isDataWorkerOverload();
 
-            graphics.putString(0,
-                    8,
+            graphics.putString(0, ++row,
                     "---------- Peer   Source Attempt  State   Have Piece R C W" + (showDownload
                             ? " ------------ Download"
                             : " -------------- Upload")
             );
             final List<PeerRecord> peerRecords = getPeerRecords(sessionState);
-            for (int i = 0; i < peerRecords.size() && i < 15; i++) {
+            for (int i = 0; i < peerRecords.size() && i < 15 && row < graphics.getSize().getRows() + 1; i++) {
                 final PeerRecord peerRecord = peerRecords.get(i);
-                graphics.putString(0,
-                        9 + i,
+                graphics.putString(0, ++row,
                         getPeerRecordString(currentTimeMillis, peerRecord, dataWorkerOverload, showDownload)
                 );
+            }
+
+            while (row < graphics.getSize().getRows() - 1) {
+                fillLine(++row, ' ');
             }
 
             // might use RefreshType.DELTA, but it does not tolerate resizing of the window
@@ -346,6 +362,10 @@ public class SessionStatePrinter {
             LOGGER.error("Unexpected error when printing session state", e);
             shutdown();
         }
+    }
+
+    private void fillLine(int row, char character) {
+        graphics.drawLine(0, row, graphics.getSize().getColumns() - 1, row, character);
     }
 
     private int getSeeds(Collection<PeerInfoView> peerInfos) {
@@ -402,8 +422,9 @@ public class SessionStatePrinter {
         int bound = (int) (completeInt * shrinkFactor);
         Arrays.fill(bar, 0, bound, '#');
         Arrays.fill(bar, bound, bar.length, ' ');
-        if (completeInt != requiredInt) {
-            bar[(int) (requiredInt * shrinkFactor) - 1] = '|';
+        if (completeInt != requiredInt && requiredInt != 100) {
+            final int i = (int) (requiredInt * shrinkFactor);
+            bar[i] = '|';
         }
         return String.format(s, String.valueOf(bar), completeInt);
     }

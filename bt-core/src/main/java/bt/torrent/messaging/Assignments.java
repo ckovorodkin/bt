@@ -59,6 +59,8 @@ public class Assignments {
         this.assignments = new HashMap<>();
         this.peers = new HashSet<>();
 
+        // take random piece to minimize number of pieces
+        // requested from different peers at the same time
         this.endgamePieceOrder = new RandomPieceOrder();
     }
 
@@ -85,22 +87,10 @@ public class Assignments {
     }
 
     public Optional<Assignment> assign(Peer peer) {
-        final BitSet mask = localBitfield.getPieces();
-        mask.flip(0, pieceStatistics.getPiecesTotal());
-
-        final PieceOrder pieceOrder;
         final boolean endgame = isEndgame();
-        if (endgame) {
-            // take random piece to minimize number of pieces
-            // requested from different peers at the same time
-            pieceOrder = this.endgamePieceOrder;
-        } else {
-            mask.andNot(assignedPieces);
-            pieceOrder = this.pieceOrder;
-        }
-
+        final PieceOrder pieceOrder = endgame ? this.endgamePieceOrder : this.pieceOrder;
+        final BitSet mask = getMask(endgame);
         final int next = pieceStatistics.next(pieceOrder, mask, peer);
-
         final Optional<Integer> selectedPiece = next == -1 ? Optional.empty() : Optional.of(next);
 
         if (LOGGER.isDebugEnabled()) {
@@ -148,11 +138,7 @@ public class Assignments {
     // TODO: select from seeders first
     public Set<Peer> getInteresting(Set<Peer> ready, Set<Peer> choking) {
         final Set<Peer> result = new HashSet<>();
-        final BitSet mask = localBitfield.getPieces();
-        mask.flip(0, pieceStatistics.getPiecesTotal());
-        if (!isEndgame()) {
-            mask.andNot(assignedPieces);
-        }
+        final BitSet mask = getMask(isEndgame());
         for (Peer peer : ready) {
             final int next = pieceStatistics.next(pieceOrder, mask, peer);
             if (next != -1) {
@@ -168,6 +154,16 @@ public class Assignments {
             }
         }
         return result;
+    }
+
+    private BitSet getMask(boolean endgame) {
+        // verified && !skipped && !complete
+        final BitSet mask = localBitfield.getRemaining();
+        if (!endgame) {
+            // verified && !skipped && !complete && !assigned
+            mask.andNot(assignedPieces);
+        }
+        return mask;
     }
 
     private boolean hasInterestingPieces(Peer peer, BitSet mask) {

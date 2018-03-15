@@ -82,6 +82,21 @@ public interface TorrentSessionState {
     double getRatio();
 
     /**
+     * @since 0.0
+     */
+    long getSelectDownload();
+
+    /**
+     * @since 0.0
+     */
+    long getLeftDownload();
+
+    /**
+     * @since 0.0
+     */
+    long getLeftVerify();
+
+    /**
      * @return Amount of data downloaded via this session (in bytes)
      * @since 1.0
      */

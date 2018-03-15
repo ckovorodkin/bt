@@ -67,7 +67,7 @@ class PieceAnnouncingPeerWorker implements PeerWorker {
     }
 
     private BitSet getUnpublishedPieces() {
-        final BitSet unpublishedPieces = bitfield.getPieces();
+        final BitSet unpublishedPieces = bitfield.getCompleteVerified();
         unpublishedPieces.andNot(publishedPieces);
         return unpublishedPieces;
     }

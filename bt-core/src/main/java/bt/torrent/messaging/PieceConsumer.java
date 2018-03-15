@@ -91,7 +91,7 @@ public class PieceConsumer {
         }
 
         // discard blocks for pieces that have already been verified
-        if (bitfield.isVerified(piece.getPieceIndex())) {
+        if (bitfield.isCompleteVerified(piece.getPieceIndex())) {
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace(
                         "Discarding received block because the chunk is already complete and verified: " +

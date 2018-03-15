@@ -139,10 +139,13 @@ public class DefaultChunkVerifier implements ChunkVerifier {
                 // if any of this chunk's storage units is empty,
                 // then the chunk is neither complete nor verified
                 if (emptyUnits[0] == 0) {
-                    boolean verified = verify(chunks[i]);
-                    if (verified) {
-                        bitfield.markVerified(i);
+                    final boolean correct = verify(chunks[i]);
+                    if (correct) {
+                        bitfield.markComplete(i);
                     }
+                    bitfield.markVerified(i, correct);
+                } else {
+                    bitfield.markVerified(i, false);
                 }
                 i++;
             }

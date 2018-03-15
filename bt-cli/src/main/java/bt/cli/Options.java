@@ -24,6 +24,7 @@ import joptsimple.OptionSpec;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Path;
 import java.util.Arrays;
 
 public class Options {
@@ -93,7 +94,7 @@ public class Options {
         return new Options(
                 opts.valueOf(metainfoFileOptionSpec),
                 opts.valueOf(magnetUriOptionSpec),
-                opts.valueOf(targetDirectoryOptionSpec),
+                opts.valueOf(targetDirectoryOptionSpec).toPath(),
                 opts.has(shouldSeedOptionSpec),
                 opts.has(sequentialOptionSpec),
                 opts.has(enforceEncryptionOptionSpec),
@@ -115,7 +116,7 @@ public class Options {
 
     private File metainfoFile;
     private String magnetUri;
-    private File targetDirectory;
+    private Path targetDirectory;
     private boolean seedAfterDownloaded;
     private boolean sequential;
     private boolean enforceEncryption;
@@ -128,7 +129,7 @@ public class Options {
 
     public Options(File metainfoFile,
                    String magnetUri,
-                   File targetDirectory,
+                   Path targetDirectory,
                    boolean seedAfterDownloaded,
                    boolean sequential,
                    boolean enforceEncryption,
@@ -160,7 +161,7 @@ public class Options {
         return magnetUri;
     }
 
-    public File getTargetDirectory() {
+    public Path getTargetDirectory() {
         return targetDirectory;
     }
 

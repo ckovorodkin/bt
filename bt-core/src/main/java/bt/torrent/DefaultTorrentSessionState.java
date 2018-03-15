@@ -16,6 +16,9 @@
 
 package bt.torrent;
 
+import bt.data.Bitfield;
+import bt.data.ChunkDescriptor;
+import bt.data.DataDescriptor;
 import bt.metainfo.TorrentId;
 import bt.net.IPeerConnectionPool;
 import bt.net.Peer;
@@ -31,8 +34,10 @@ import bt.torrent.messaging.TorrentWorker;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class DefaultTorrentSessionState implements TorrentSessionState {
 
@@ -76,7 +81,7 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
     @Override
     public int getPiecesComplete() {
         if (descriptor.getDataDescriptor() != null) {
-            return descriptor.getDataDescriptor().getBitfield().getPiecesComplete();
+            return descriptor.getDataDescriptor().getBitfield().getPiecesCompleteVerified();
         } else {
             return 0;
         }
@@ -121,7 +126,7 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
     @Override
     public BitSet getPieces() {
         if (descriptor.getDataDescriptor() != null) {
-            return descriptor.getDataDescriptor().getBitfield().getPieces();
+            return descriptor.getDataDescriptor().getBitfield().getCompleteVerified();
         }
         emptyPieces.clear();
         return emptyPieces;
@@ -130,6 +135,79 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
     @Override
     public double getRatio() {
         return worker.getRatio();
+    }
+
+    @Override
+    public long getSelectDownload() {
+        final DataDescriptor dataDescriptor = descriptor.getDataDescriptor();
+        if (dataDescriptor == null) {
+            return 0;
+        }
+        final AtomicLong amount = new AtomicLong();
+        final List<ChunkDescriptor> chunkDescriptors = dataDescriptor.getChunkDescriptors();
+        final Bitfield bitfield = dataDescriptor.getBitfield();
+        final BitSet selected = bitfield.getSkipped();
+        selected.flip(0, bitfield.getPiecesTotal());
+        for (int pieceIndex = selected.nextSetBit(0); //br
+             0 <= pieceIndex && pieceIndex < bitfield.getPiecesTotal();
+             pieceIndex = selected.nextSetBit(pieceIndex + 1)) {
+            final ChunkDescriptor chunkDescriptor = chunkDescriptors.get(pieceIndex);
+            final long chunkSize = chunkDescriptor.getData().length();
+            amount.addAndGet(chunkSize);
+        }
+        return amount.get();
+    }
+
+    @Override
+    public long getLeftDownload() {
+        final DataDescriptor dataDescriptor = descriptor.getDataDescriptor();
+        if (dataDescriptor == null) {
+            return 0;
+        }
+        final AtomicLong amount = new AtomicLong();
+        final List<ChunkDescriptor> chunkDescriptors = dataDescriptor.getChunkDescriptors();
+        final Bitfield bitfield = dataDescriptor.getBitfield();
+        //final BitSet remaining = bitfield.getRemaining();
+        final BitSet remaining = new BitSet();
+        remaining.flip(0, bitfield.getPiecesTotal());
+        remaining.andNot(bitfield.getSkipped());
+        remaining.andNot(bitfield.getComplete());
+        for (int pieceIndex = remaining.nextSetBit(0); //br
+             0 <= pieceIndex && pieceIndex < bitfield.getPiecesTotal();
+             pieceIndex = remaining.nextSetBit(pieceIndex + 1)) {
+            final ChunkDescriptor chunkDescriptor = chunkDescriptors.get(pieceIndex);
+            final long blockSize = chunkDescriptor.blockSize();
+            final long chunkSize = chunkDescriptor.getData().length();
+            for (int blockIndex = 0; blockIndex < chunkDescriptor.blockCount(); blockIndex++) {
+                if (!chunkDescriptor.isPresent(blockIndex)) {
+                    final long offset = blockIndex * blockSize;
+                    final long length = Math.min(blockSize, chunkSize - offset);
+                    amount.addAndGet(length);
+                }
+            }
+        }
+        return amount.get();
+    }
+
+    @Override
+    public long getLeftVerify() {
+        final DataDescriptor dataDescriptor = descriptor.getDataDescriptor();
+        if (dataDescriptor == null) {
+            return 0;
+        }
+        final AtomicLong amount = new AtomicLong();
+        final List<ChunkDescriptor> chunkDescriptors = dataDescriptor.getChunkDescriptors();
+        final Bitfield bitfield = dataDescriptor.getBitfield();
+        final BitSet selected = bitfield.getVerified();
+        selected.flip(0, bitfield.getPiecesTotal());
+        for (int pieceIndex = selected.nextSetBit(0); //br
+             0 <= pieceIndex && pieceIndex < bitfield.getPiecesTotal();
+             pieceIndex = selected.nextSetBit(pieceIndex + 1)) {
+            final ChunkDescriptor chunkDescriptor = chunkDescriptors.get(pieceIndex);
+            final long chunkSize = chunkDescriptor.getData().length();
+            amount.addAndGet(chunkSize);
+        }
+        return amount.get();
     }
 
     @Override

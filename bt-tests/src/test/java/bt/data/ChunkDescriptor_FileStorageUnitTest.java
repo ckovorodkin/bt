@@ -20,6 +20,7 @@ import bt.TestUtil;
 import bt.data.digest.Digester;
 import bt.data.digest.SHA1Digester;
 import bt.metainfo.Torrent;
+import bt.protocol.Protocols;
 import bt.service.CryptoUtil;
 import org.junit.Before;
 import org.junit.Rule;
@@ -82,6 +83,8 @@ public class ChunkDescriptor_FileStorageUnitTest {
         DataDescriptor descriptor = dataDescriptorFactory.createDescriptor(torrent, storage);
         assertEquals(4, descriptor.getChunkDescriptors().size());
 
+        waitVerification(descriptor);
+
         return descriptor;
     }
 
@@ -135,6 +138,8 @@ public class ChunkDescriptor_FileStorageUnitTest {
         DataDescriptor descriptor = dataDescriptorFactory.createDescriptor(torrent, storage);
         assertEquals(0, descriptor.getChunkDescriptors().size());
 
+        waitVerification(descriptor);
+
         return descriptor;
     }
 
@@ -147,9 +152,13 @@ public class ChunkDescriptor_FileStorageUnitTest {
         assertTrue(chunks.isEmpty());
         assertEquals(0, descriptor.getBitfield().getPiecesRemaining());
         assertEquals(0, descriptor.getBitfield().getPiecesTotal());
-        assertEquals(0, descriptor.getBitfield().getPiecesComplete());
-        assertEquals(0, descriptor.getBitfield().getBitmask().length);
-        assertEquals(0, descriptor.getBitfield().getPieces().length());
+        assertEquals(0, descriptor.getBitfield().getPiecesCompleteVerified());
+        assertEquals(0,
+                Protocols.toByteArray(descriptor.getBitfield().getCompleteVerified(),
+                        descriptor.getBitfield().getPiecesTotal()
+                ).length
+        );
+        assertEquals(0, descriptor.getBitfield().getCompleteVerified().length());
 
         assertFileHasContents(new File(storage.getRoot(), fileName), new byte[0]);
     }
@@ -262,6 +271,8 @@ public class ChunkDescriptor_FileStorageUnitTest {
         DataDescriptor descriptor = dataDescriptorFactory.createDescriptor(torrent, storage);
         assertEquals(6, descriptor.getChunkDescriptors().size());
 
+        waitVerification(descriptor);
+
         return descriptor;
     }
 
@@ -364,7 +375,20 @@ public class ChunkDescriptor_FileStorageUnitTest {
         DataDescriptor descriptor = dataDescriptorFactory.createDescriptor(torrent, storage);
         assertEquals(0, descriptor.getChunkDescriptors().size());
 
+        waitVerification(descriptor);
+
         return descriptor;
+    }
+
+    private void waitVerification(DataDescriptor descriptor) {
+        final Bitfield bitfield = descriptor.getBitfield();
+        while (bitfield.getVerified().cardinality() < bitfield.getPiecesTotal()) {
+            try {
+                Thread.sleep(50L);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     @Test
@@ -386,9 +410,13 @@ public class ChunkDescriptor_FileStorageUnitTest {
         assertTrue(descriptor.getChunkDescriptors().isEmpty());
         assertEquals(0, descriptor.getBitfield().getPiecesRemaining());
         assertEquals(0, descriptor.getBitfield().getPiecesTotal());
-        assertEquals(0, descriptor.getBitfield().getPiecesComplete());
-        assertEquals(0, descriptor.getBitfield().getBitmask().length);
-        assertEquals(0, descriptor.getBitfield().getPieces().length());
+        assertEquals(0, descriptor.getBitfield().getPiecesCompleteVerified());
+        assertEquals(0,
+                Protocols.toByteArray(descriptor.getBitfield().getCompleteVerified(),
+                        descriptor.getBitfield().getPiecesTotal()
+                ).length
+        );
+        assertEquals(0, descriptor.getBitfield().getCompleteVerified().length());
 
         assertFileHasContents(new File(torrentDirectory, fileName1), new byte[0]);
         assertFileHasContents(new File(torrentDirectory, fileName2), new byte[0]);

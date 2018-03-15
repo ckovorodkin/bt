@@ -139,7 +139,7 @@ public class PiecesStatistics {
 
     public double getRatio(Bitfield localBitfield) {
         final double ratio;
-        final BitSet local = localBitfield.getPieces();
+        final BitSet local = localBitfield.getCompleteVerified();
         synchronized (accumulator) {
             ratio = accumulator.getRatio(local);
         }

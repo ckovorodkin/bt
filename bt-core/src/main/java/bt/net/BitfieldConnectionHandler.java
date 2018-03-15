@@ -48,7 +48,7 @@ public class BitfieldConnectionHandler implements HandshakeHandler {
                 && descriptorOptional.get().getDataDescriptor() != null) {
             Bitfield bitfield = descriptorOptional.get().getDataDescriptor().getBitfield();
 
-            final BitSet completeVerified = bitfield.getPieces();
+            final BitSet completeVerified = bitfield.getCompleteVerified();
             connection.setPublishedPieces(completeVerified);
             if (completeVerified.cardinality() > 0) {
                 Peer peer = connection.getRemotePeer();
