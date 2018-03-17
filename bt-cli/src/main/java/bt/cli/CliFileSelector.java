@@ -16,7 +16,7 @@
 
 package bt.cli;
 
-import bt.metainfo.TorrentFile;
+import bt.data.TorrentFileInfo;
 import bt.torrent.fileselector.SelectionResult;
 import bt.torrent.fileselector.TorrentFileSelector;
 
@@ -46,7 +46,7 @@ public class CliFileSelector extends TorrentFileSelector {
     }
 
     @Override
-    public List<SelectionResult> selectFiles(List<TorrentFile> files) {
+    public List<SelectionResult> selectFiles(List<TorrentFileInfo> files) {
         printer.ifPresent(SessionStatePrinter::pause);
 
         List<SelectionResult> results = super.selectFiles(files);
@@ -56,7 +56,7 @@ public class CliFileSelector extends TorrentFileSelector {
     }
 
     @Override
-    protected SelectionResult select(TorrentFile file) {
+    protected SelectionResult select(TorrentFileInfo file) {
         while (!shutdown) {
             System.out.println(getPromptMessage(file));
 
@@ -83,8 +83,8 @@ public class CliFileSelector extends TorrentFileSelector {
         throw new IllegalStateException("Shutdown");
     }
 
-    private static String getPromptMessage(TorrentFile file) {
-        return String.format(PROMPT_MESSAGE_FORMAT, String.join("/", file.getPathElements()));
+    private static String getPromptMessage(TorrentFileInfo torrentFileInfo) {
+        return String.format(PROMPT_MESSAGE_FORMAT, torrentFileInfo.getStorageUnit().getPath());
     }
 
     private void shutdown() {

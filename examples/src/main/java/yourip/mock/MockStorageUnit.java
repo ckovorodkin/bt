@@ -20,8 +20,13 @@ import bt.data.StorageUnit;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 
 public class MockStorageUnit implements StorageUnit {
+    @Override
+    public Path getPath() {
+        throw new UnsupportedOperationException();
+    }
 
     @Override
     public void readBlock(ByteBuffer buffer, long offset) {

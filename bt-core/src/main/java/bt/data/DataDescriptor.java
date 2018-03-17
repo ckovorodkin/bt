@@ -44,6 +44,11 @@ public interface DataDescriptor extends Closeable {
     Bitfield getBitfield();
 
     /**
+     * @since 0.0
+     */
+    List<TorrentFileInfo> getTorrentFileInfos();
+
+    /**
      * Get a list of files that a given piece index intersects
      *
      * @return A list of files that a given piece index intersects

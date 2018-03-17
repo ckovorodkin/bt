@@ -16,7 +16,7 @@
 
 package bt.torrent.fileselector;
 
-import bt.metainfo.TorrentFile;
+import bt.data.TorrentFileInfo;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -35,7 +35,7 @@ public abstract class TorrentFileSelector {
      *
      * @since 1.7
      */
-    public List<SelectionResult> selectFiles(List<TorrentFile> files) {
+    public List<SelectionResult> selectFiles(List<TorrentFileInfo> files) {
         return files.stream().map(this::select).collect(Collectors.toList());
     }
 
@@ -44,5 +44,5 @@ public abstract class TorrentFileSelector {
      *
      * @since 1.7
      */
-    protected abstract SelectionResult select(TorrentFile file);
+    protected abstract SelectionResult select(TorrentFileInfo file);
 }

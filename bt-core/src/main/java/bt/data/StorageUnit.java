@@ -19,6 +19,7 @@ package bt.data;
 import java.io.Closeable;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 
 /**
  * Storage for a single torrent file
@@ -26,6 +27,10 @@ import java.nio.ByteBuffer;
  * @since 1.0
  */
 public interface StorageUnit extends Closeable {
+    /**
+     * @since 0.0
+     */
+    Path getPath();
 
     /**
      * Read a block of data into the provided buffer, starting with a given offset.

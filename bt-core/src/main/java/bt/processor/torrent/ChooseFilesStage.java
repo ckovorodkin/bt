@@ -17,9 +17,8 @@
 package bt.processor.torrent;
 
 import bt.data.Bitfield;
-import bt.data.DataDescriptor;
+import bt.data.TorrentFileInfo;
 import bt.metainfo.Torrent;
-import bt.metainfo.TorrentFile;
 import bt.processor.ProcessingStage;
 import bt.processor.TerminateOnErrorProcessingStage;
 import bt.processor.listener.ProcessingEvent;
@@ -27,13 +26,14 @@ import bt.runtime.Config;
 import bt.torrent.TorrentDescriptor;
 import bt.torrent.TorrentRegistry;
 import bt.torrent.fileselector.SelectionResult;
-import bt.torrent.fileselector.TorrentFileSelector;
 
 import java.util.BitSet;
-import java.util.HashSet;
+import java.util.Collection;
 import java.util.List;
-import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.IntStream;
+
+import static java.util.stream.Collectors.toList;
 
 public class ChooseFilesStage<C extends TorrentContext> extends TerminateOnErrorProcessingStage<C> {
     private TorrentRegistry torrentRegistry;
@@ -52,25 +52,23 @@ public class ChooseFilesStage<C extends TorrentContext> extends TerminateOnError
         Torrent torrent = context.getTorrent().get();
         TorrentDescriptor descriptor = torrentRegistry.getDescriptor(torrent.getTorrentId()).get();
 
-        Set<TorrentFile> selectedFiles = new HashSet<>();
-        if (context.getFileSelector().isPresent()) {
-            TorrentFileSelector selector = context.getFileSelector().get();
-            List<TorrentFile> files = torrent.getFiles();
+        final Predicate<TorrentFileInfo> predicate = context.getFileSelector().map(selector -> {
+            List<TorrentFileInfo> files = descriptor.getDataDescriptor().getTorrentFileInfos();
             List<SelectionResult> selectionResults = selector.selectFiles(files);
             if (selectionResults.size() != files.size()) {
                 throw new IllegalStateException("Invalid number of selection results");
             }
-            for (int i = 0; i < files.size(); i++) {
-                if (!selectionResults.get(i).shouldSkip()) {
-                    selectedFiles.add(files.get(i));
-                }
-            }
-        } else {
-            selectedFiles = new HashSet<>(torrent.getFiles());
-        }
+            //noinspection UnnecessaryLocalVariable
+            final Predicate<TorrentFileInfo> selectionResultPredicate =
+                    torrentFileInfo -> !selectionResults.get(torrentFileInfo.getIndex()).shouldSkip();
+            return selectionResultPredicate;
+        }).orElse(torrentFileInfo -> true);
+
+        final Collection<TorrentFileInfo> selectedFiles =
+                descriptor.getDataDescriptor().getTorrentFileInfos().stream().filter(predicate).collect(toList());
 
         Bitfield bitfield = descriptor.getDataDescriptor().getBitfield();
-        BitSet selectedPieces = getPieces(descriptor.getDataDescriptor(), selectedFiles);
+        BitSet selectedPieces = getPieces(selectedFiles);
         BitSet skippedPieces = new BitSet();
         skippedPieces.or(selectedPieces);
         skippedPieces.flip(0, bitfield.getPiecesTotal());
@@ -81,16 +79,11 @@ public class ChooseFilesStage<C extends TorrentContext> extends TerminateOnError
         IntStream.range(0, bitfield.getPiecesTotal()).filter(skippedPieces::get).forEach(bitfield::skip);
     }
 
-    private BitSet getPieces(DataDescriptor dataDescriptor, Set<TorrentFile> torrentFiles) {
+    private BitSet getPieces(Collection<TorrentFileInfo> torrentFiles) {
         final BitSet pieces = new BitSet();
-        IntStream.range(0, dataDescriptor.getBitfield().getPiecesTotal()).forEach(pieceIndex -> {
-            for (TorrentFile file : dataDescriptor.getFilesForPiece(pieceIndex)) {
-                if (torrentFiles.contains(file)) {
-                    pieces.set(pieceIndex);
-                    break;
-                }
-            }
-        });
+        torrentFiles.forEach(torrentFile -> IntStream
+                .range(torrentFile.getFirstPieceIndex(), torrentFile.getLastPieceIndex())
+                .forEach(pieces::set));
         return pieces;
     }
 

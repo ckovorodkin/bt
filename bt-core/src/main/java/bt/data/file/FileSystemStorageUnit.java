@@ -45,6 +45,11 @@ class FileSystemStorageUnit implements StorageUnit {
         this.closed = true;
     }
 
+    @Override
+    public Path getPath() {
+        return file;
+    }
+
     // TODO: this is temporary fix for verification upon app start
     // should be re-done (probably need additional API to know if storage unit is "empty")
     private boolean init(boolean create) {

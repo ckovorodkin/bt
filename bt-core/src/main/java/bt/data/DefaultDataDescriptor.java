@@ -42,6 +42,8 @@ class DefaultDataDescriptor implements DataDescriptor {
     private List<ChunkDescriptor> chunkDescriptors;
     private Bitfield bitfield;
 
+    private List<TorrentFileInfo> torrentFileInfos;
+
     private Map<Integer, List<TorrentFile>> filesForPieces;
     private Set<StorageUnit> storageUnits;
 
@@ -74,8 +76,29 @@ class DefaultDataDescriptor implements DataDescriptor {
 
         Iterator<byte[]> chunkHashes = torrent.getChunkHashes().iterator();
 
+        final List<TorrentFileInfo> torrentFileInfos = new ArrayList<>(files.size() + 1);
+        {
+            long offset = 0;
+            for (int index = 0; index < files.size(); index++) {
+                final TorrentFile torrentFile = files.get(index);
+                final DefaultTorrentFileInfo torrentFileInfo = new DefaultTorrentFileInfo();
+                torrentFileInfo.setIndex(index);
+                torrentFileInfo.setOffset(offset);
+                torrentFileInfo.setFirstPieceIndex((int) (offset / chunkSize));
+                offset += torrentFile.getSize();
+                torrentFileInfo.setLastPieceIndex((int) (offset / chunkSize));
+                torrentFileInfo.setTorrentFile(torrentFile);
+                torrentFileInfo.setStorageUnit(storage.getUnit(torrent, torrentFile));
+                torrentFileInfos.add(torrentFileInfo);
+            }
+        }
+
         Map<StorageUnit, TorrentFile> storageUnitsToFilesMap = new LinkedHashMap<>((int)(files.size() / 0.75d) + 1);
-        files.forEach(f -> storageUnitsToFilesMap.put(storage.getUnit(torrent, f), f));
+        torrentFileInfos
+                .stream()
+                .forEach(torrentFileInfo -> storageUnitsToFilesMap.put(torrentFileInfo.getStorageUnit(),
+                        torrentFileInfo.getTorrentFile()
+                ));
 
         // filter out empty files (and create them at once)
         List<StorageUnit> nonEmptyStorageUnits = new ArrayList<>();
@@ -124,6 +147,7 @@ class DefaultDataDescriptor implements DataDescriptor {
 
         this.bitfield = buildBitfield(chunks);
         this.chunkDescriptors = chunks;
+        this.torrentFileInfos = torrentFileInfos;
         this.storageUnits = storageUnitsToFilesMap.keySet();
         this.filesForPieces = filesForPieces;
     }
@@ -151,6 +175,11 @@ class DefaultDataDescriptor implements DataDescriptor {
     @Override
     public Bitfield getBitfield() {
         return bitfield;
+    }
+
+    @Override
+    public List<TorrentFileInfo> getTorrentFileInfos() {
+        return torrentFileInfos;
     }
 
     @Override
