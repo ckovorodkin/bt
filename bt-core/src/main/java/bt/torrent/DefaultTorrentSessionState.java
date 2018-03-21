@@ -30,6 +30,7 @@ import bt.torrent.messaging.ConnectionState;
 import bt.torrent.messaging.PeerInfoView;
 import bt.torrent.messaging.PeerManager;
 import bt.torrent.messaging.TorrentWorker;
+import bt.torrent.order.PieceOrder;
 
 import java.util.BitSet;
 import java.util.Collection;
@@ -43,6 +44,7 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
 
     private final TorrentId torrentId;
     private final TorrentDescriptor descriptor;
+    private final PieceOrder pieceOrder;
     private final TorrentWorker worker;
     private final PeerManager peerManager;
     private final DataWorker dataWorker;
@@ -54,6 +56,7 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
 
     public DefaultTorrentSessionState(TorrentId torrentId,
                                       TorrentDescriptor descriptor,
+                                      PieceOrder pieceOrder,
                                       TorrentWorker worker,
                                       PeerManager peerManager,
                                       DataWorker dataWorker,
@@ -61,6 +64,7 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
                                       IPeerConnectionPool peerConnectionPool) {
         this.torrentId = torrentId;
         this.descriptor = descriptor;
+        this.pieceOrder = pieceOrder;
         this.worker = worker;
         this.peerManager = peerManager;
         this.dataWorker = dataWorker;
@@ -108,7 +112,9 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
     @Override
     public int getPiecesRemaining() {
         if (descriptor.getDataDescriptor() != null) {
-            return descriptor.getDataDescriptor().getBitfield().getPiecesRemaining();
+            final BitSet remaining = descriptor.getDataDescriptor().getBitfield().getRemaining();
+            remaining.and(pieceOrder.getMask());
+            return remaining.cardinality();
         } else {
             return 1;
         }
@@ -116,17 +122,13 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
 
     @Override
     public int getPiecesSkipped() {
-        if (descriptor.getDataDescriptor() != null) {
-            return descriptor.getDataDescriptor().getBitfield().getPiecesSkipped();
-        } else {
-            return 0;
-        }
+        return getPiecesTotal() - getPiecesNotSkipped();
     }
 
     @Override
     public int getPiecesNotSkipped() {
         if (descriptor.getDataDescriptor() != null) {
-            return descriptor.getDataDescriptor().getBitfield().getPiecesNotSkipped();
+            return pieceOrder.getMask().cardinality();
         } else {
             return 1;
         }
@@ -155,8 +157,7 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
         final AtomicLong amount = new AtomicLong();
         final List<ChunkDescriptor> chunkDescriptors = dataDescriptor.getChunkDescriptors();
         final Bitfield bitfield = dataDescriptor.getBitfield();
-        final BitSet selected = bitfield.getSkipped();
-        selected.flip(0, bitfield.getPiecesTotal());
+        final BitSet selected = pieceOrder.getMask();
         for (int pieceIndex = selected.nextSetBit(0); //br
              0 <= pieceIndex && pieceIndex < bitfield.getPiecesTotal();
              pieceIndex = selected.nextSetBit(pieceIndex + 1)) {
@@ -179,7 +180,7 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
         //final BitSet remaining = bitfield.getRemaining();
         final BitSet remaining = new BitSet();
         remaining.flip(0, bitfield.getPiecesTotal());
-        remaining.andNot(bitfield.getSkipped());
+        remaining.and(pieceOrder.getMask());
         remaining.andNot(bitfield.getComplete());
         for (int pieceIndex = remaining.nextSetBit(0); //br
              0 <= pieceIndex && pieceIndex < bitfield.getPiecesTotal();

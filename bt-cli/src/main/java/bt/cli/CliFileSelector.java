@@ -24,20 +24,30 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
+import static bt.torrent.fileselector.SelectionResult.DEFAULT_PRIORITY;
+import static bt.torrent.fileselector.SelectionResult.SKIP_PRIORITY;
+
 public class CliFileSelector extends TorrentFileSelector {
     private static final String PROMPT_MESSAGE_FORMAT = "Download '%s'? (hit <Enter> to confirm or <Esc> to skip)";
     private static final String ILLEGAL_KEYPRESS_WARNING = "*** Invalid key pressed. Please, use only <Enter> or <Esc> ***";
 
-    private final Optional<SessionStatePrinter> printer;
+    private final boolean rarest;
+    private final boolean random;
+
+    private final Optional<Runnable> beforeSelect;
+    private final Optional<Runnable> afterSelect;
+
     private volatile boolean shutdown;
 
-    public CliFileSelector() {
-        this.printer = Optional.empty();
-        registerShutdownHook();
+    public CliFileSelector(boolean rarest, boolean random) {
+        this(rarest, random, null, null);
     }
 
-    public CliFileSelector(SessionStatePrinter printer) {
-        this.printer = Optional.of(printer);
+    public CliFileSelector(boolean rarest, boolean random, Runnable beforeSelect, Runnable afterSelect) {
+        this.rarest = rarest;
+        this.random = random;
+        this.beforeSelect = Optional.of(beforeSelect);
+        this.afterSelect = Optional.of(afterSelect);
         registerShutdownHook();
     }
 
@@ -47,18 +57,18 @@ public class CliFileSelector extends TorrentFileSelector {
 
     @Override
     public List<SelectionResult> selectFiles(List<TorrentFileInfo> files) {
-        printer.ifPresent(SessionStatePrinter::pause);
-
-        List<SelectionResult> results = super.selectFiles(files);
-
-        printer.ifPresent(SessionStatePrinter::resume);
-        return results;
+        try {
+            beforeSelect.ifPresent(Runnable::run);
+            return super.selectFiles(files);
+        } finally {
+            afterSelect.ifPresent(Runnable::run);
+        }
     }
 
     @Override
-    protected SelectionResult select(TorrentFileInfo file) {
+    protected SelectionResult select(TorrentFileInfo torrentFileInfo) {
         while (!shutdown) {
-            System.out.println(getPromptMessage(file));
+            System.out.println(getPromptMessage(torrentFileInfo));
 
             try {
                 switch (System.in.read()) {
@@ -66,10 +76,10 @@ public class CliFileSelector extends TorrentFileSelector {
                         throw new IllegalStateException("EOF");
                     }
                     case '\n': { // <Enter>
-                        return SelectionResult.select().build();
+                        return new SelectionResult(torrentFileInfo, DEFAULT_PRIORITY, rarest, random);
                     }
                     case 0x1B: { // <Esc>
-                        return SelectionResult.skip();
+                        return new SelectionResult(torrentFileInfo, SKIP_PRIORITY, rarest, random);
                     }
                     default: {
                         System.out.println(ILLEGAL_KEYPRESS_WARNING);

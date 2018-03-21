@@ -44,5 +44,5 @@ public abstract class TorrentFileSelector {
      *
      * @since 1.7
      */
-    protected abstract SelectionResult select(TorrentFileInfo file);
+    protected abstract SelectionResult select(TorrentFileInfo torrentFileInfo);
 }

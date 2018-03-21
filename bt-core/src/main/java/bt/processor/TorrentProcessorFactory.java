@@ -120,7 +120,7 @@ public class TorrentProcessorFactory implements ProcessorFactory {
 
         ProcessingStage<TorrentContext> stage4 = new ProcessTorrentStage<>(stage5, torrentRegistry, trackerService);
 
-        ProcessingStage<TorrentContext> stage3 = new ChooseFilesStage<>(stage4, torrentRegistry, config);
+        ProcessingStage<TorrentContext> stage3 = new ChooseFilesStage<>(stage4, torrentRegistry);
 
         ProcessingStage<TorrentContext> stage2 = new InitializeTorrentProcessingStage<>(
                 stage3,

@@ -61,7 +61,9 @@ public class Assignments {
 
         // take random piece to minimize number of pieces
         // requested from different peers at the same time
-        this.endgamePieceOrder = new RandomPieceOrder();
+        final BitSet mask = new BitSet();
+        mask.flip(0, localBitfield.getPiecesTotal());
+        this.endgamePieceOrder = new RandomPieceOrder(mask);
     }
 
     public double getRatio() {
@@ -157,8 +159,10 @@ public class Assignments {
     }
 
     private BitSet getMask(boolean endgame) {
-        // verified && !skipped && !complete
+        // verified && !complete
         final BitSet mask = localBitfield.getRemaining();
+        // verified && !skipped && !complete
+        mask.and(pieceOrder.getMask());
         if (!endgame) {
             // verified && !skipped && !complete && !assigned
             mask.andNot(assignedPieces);

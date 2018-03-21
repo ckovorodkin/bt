@@ -47,12 +47,6 @@ public class Bitfield {
     private final BitSet verified;
 
     /**
-     * Bitmask indicating pieces that should be skipped.
-     * If the n-th bit is set, then the n-th piece should be skipped.
-     */
-    private volatile BitSet skipped;
-
-    /**
      * BitSet indicating availability of pieces.
      * If the n-th bit is set, then the n-th piece is complete.
      */
@@ -73,7 +67,6 @@ public class Bitfield {
      */
     public Bitfield(int piecesTotal) {
         this.verified = new BitSet(piecesTotal);
-        this.skipped = new BitSet(piecesTotal);
         this.complete = new BitSet(piecesTotal);
         this.piecesTotal = piecesTotal;
         this.lock = new ReentrantLock();
@@ -86,18 +79,6 @@ public class Bitfield {
         lock.lock();
         try {
             return (BitSet) verified.clone();
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    /**
-     * @since 0.0
-     */
-    public BitSet getSkipped() {
-        lock.lock();
-        try {
-            return (BitSet) skipped.clone();
         } finally {
             lock.unlock();
         }
@@ -133,14 +114,13 @@ public class Bitfield {
     }
 
     /**
-     * @return verified && !skipped && !complete
+     * @return verified && !complete
      * @since 0.0
      */
     public BitSet getRemaining() {
         lock.lock();
         try {
             final BitSet remaining = (BitSet) verified.clone();
-            remaining.andNot(skipped);
             remaining.andNot(complete);
             return remaining;
         } finally {
@@ -187,27 +167,6 @@ public class Bitfield {
      */
     public int getPiecesRemaining() {
         return getRemaining().cardinality();
-    }
-
-    /**
-     * @return Number of pieces that should be skipped
-     * @since 1.7
-     */
-    public int getPiecesSkipped() {
-        lock.lock();
-        try {
-            return skipped.cardinality();
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    /**
-     * @return Number of pieces that should NOT be skipped
-     * @since 1.7
-     */
-    public int getPiecesNotSkipped() {
-        return piecesTotal - getPiecesSkipped();
     }
 
     /**
@@ -310,38 +269,6 @@ public class Bitfield {
         if (pieceIndex < 0 || pieceIndex >= getPiecesTotal()) {
             throw new BtException("Illegal piece index: " + pieceIndex +
                     ", expected 0.." + (getPiecesTotal() - 1));
-        }
-    }
-
-    /**
-     * Mark a piece as skipped
-     *
-     * @since 1.7
-     */
-    public void skip(int pieceIndex) {
-        validatePieceIndex(pieceIndex);
-
-        lock.lock();
-        try {
-            skipped.set(pieceIndex);
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    /**
-     * Mark a piece as not skipped
-     *
-     * @since 1.7
-     */
-    public void unskip(int pieceIndex) {
-        validatePieceIndex(pieceIndex);
-
-        lock.lock();
-        try {
-            skipped.clear(pieceIndex);
-        } finally {
-            lock.unlock();
         }
     }
 }

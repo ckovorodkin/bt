@@ -16,56 +16,56 @@
 
 package bt.torrent.fileselector;
 
+import bt.data.TorrentFileInfo;
+
 /**
  * @since 1.7
  */
 public class SelectionResult {
+    public static final int SKIP_PRIORITY = 0;
+    public static final int DEFAULT_PRIORITY = 2;
 
-    /**
-     * @since 1.7
-     */
-    public static Builder select() {
-        return new Builder();
-    }
-
-    /**
-     * @since 1.7
-     */
-    public static SelectionResult skip() {
-        return new SelectionResult(true);
-    }
-
-    private final boolean skip;
-
-    private SelectionResult(boolean skip) {
-        this.skip = skip;
-    }
-
-    /**
-     * @since 1.7
-     */
-    public boolean shouldSkip() {
-        return skip;
-    }
+    private TorrentFileInfo torrentFileInfo;
+    private int priority;
+    private boolean rarest;
+    private boolean random;
 
     // later we may add more options:
-    // - priority
     // - nofify-on-completed
     // etc.
 
+    public SelectionResult(TorrentFileInfo torrentFileInfo, int priority, boolean rarest, boolean random) {
+        this.torrentFileInfo = torrentFileInfo;
+        this.priority = priority;
+        this.random = random;
+        this.rarest = rarest;
+    }
+
     /**
-     * @since 1.7
+     * @since 0.0
      */
-    public static class Builder {
+    public TorrentFileInfo getTorrentFileInfo() {
+        return torrentFileInfo;
+    }
 
-        private Builder() {
-        }
+    /**
+     * @since 0.0
+     */
+    public int getPriority() {
+        return priority;
+    }
 
-        /**
-         * @since 1.7
-         */
-        public SelectionResult build() {
-            return new SelectionResult(false);
-        }
+    /**
+     * @since 0.0
+     */
+    public boolean isRarest() {
+        return rarest;
+    }
+
+    /**
+     * @since 0.0
+     */
+    public boolean isRandom() {
+        return random;
     }
 }

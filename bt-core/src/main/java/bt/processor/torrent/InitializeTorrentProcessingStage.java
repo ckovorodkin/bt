@@ -118,6 +118,7 @@ public class InitializeTorrentProcessingStage<C extends TorrentContext> extends 
 
         context.setState(new DefaultTorrentSessionState(torrentId,
                 descriptor,
+                pieceOrder,
                 torrentWorker,
                 peerManager,
                 dataWorker,

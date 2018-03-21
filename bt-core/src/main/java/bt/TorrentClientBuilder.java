@@ -28,11 +28,8 @@ import bt.processor.listener.ProcessingEvent;
 import bt.processor.magnet.MagnetContext;
 import bt.processor.torrent.TorrentContext;
 import bt.runtime.BtRuntime;
+import bt.torrent.fileselector.AllTorrentFileSelector;
 import bt.torrent.fileselector.TorrentFileSelector;
-import bt.torrent.order.PieceOrder;
-import bt.torrent.order.RandomizedRarestPieceOrder;
-import bt.torrent.order.RarestPieceOrder;
-import bt.torrent.order.SequentialPieceOrder;
 
 import java.net.URL;
 import java.util.ArrayList;
@@ -51,7 +48,6 @@ public class TorrentClientBuilder<B extends TorrentClientBuilder> extends BaseCl
     private MagnetUri magnetUri;
 
     private TorrentFileSelector fileSelector;
-    private PieceOrder pieceOrder;
 
     private List<Consumer<Torrent>> torrentConsumers;
     private List<Runnable> fileSelectionListeners;
@@ -62,8 +58,8 @@ public class TorrentClientBuilder<B extends TorrentClientBuilder> extends BaseCl
      * @since 1.4
      */
     protected TorrentClientBuilder() {
-        // set default piece selector
-        this.pieceOrder = new RarestPieceOrder();
+        // set default file selector
+        this.fileSelector = new AllTorrentFileSelector();
     }
 
     /**
@@ -136,45 +132,6 @@ public class TorrentClientBuilder<B extends TorrentClientBuilder> extends BaseCl
         return (B) this;
     }
 
-
-    /**
-     * Set piece selection strategy
-     *
-     * @since 0.0
-     */
-    @SuppressWarnings("unchecked")
-    public B pieceOrder(PieceOrder  pieceOrder) {
-        this.pieceOrder = Objects.requireNonNull(pieceOrder, "Missing piece selector");
-        return (B) this;
-    }
-
-    /**
-     * Use sequential piece selection strategy
-     *
-     * @since 0.0
-     */
-    public B sequentialPieceOrder() {
-       return pieceOrder(new  SequentialPieceOrder());
-    }
-
-    /**
-     * Use rarest first piece selection strategy
-     *
-     * @since 0.0
-     */
-    public B rarestPieceOrder() {
-       return pieceOrder(new RarestPieceOrder());
-    }
-
-    /**
-     * Use rarest first piece selection strategy
-     *
-     * @since 0.0
-     */
-    public B randomizedRarestPieceOrder() {
-       return pieceOrder(new RandomizedRarestPieceOrder());
-    }
-
     /**
      * Stop processing, when the data has been downloaded.
      *
@@ -236,11 +193,11 @@ public class TorrentClientBuilder<B extends TorrentClientBuilder> extends BaseCl
 
         ProcessingContext context;
         if (torrentUrl != null) {
-            context = new TorrentContext(pieceOrder, fileSelector, storage, () -> fetchTorrentFromUrl(runtime, torrentUrl));
+            context = new TorrentContext(fileSelector, storage, () -> fetchTorrentFromUrl(runtime, torrentUrl));
         } else if (torrentSupplier != null) {
-            context = new TorrentContext(pieceOrder, fileSelector, storage, torrentSupplier);
+            context = new TorrentContext(fileSelector, storage, torrentSupplier);
         } else if (this.magnetUri != null) {
-            context = new MagnetContext(magnetUri, pieceOrder, fileSelector, storage);
+            context = new MagnetContext(magnetUri, fileSelector, storage);
         } else {
             throw new IllegalStateException("Missing torrent supplier, torrent URL or magnet URI");
         }

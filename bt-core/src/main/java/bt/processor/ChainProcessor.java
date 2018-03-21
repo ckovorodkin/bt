@@ -114,7 +114,7 @@ public class ChainProcessor<C extends ProcessingContext> implements Processor<C>
                 LOGGER.debug(String.format("Finished processing stage: torrent ID (%s), stage (%s)",
                         context.getTorrentId().orElse(null), stage.getClass().getName()));
             }
-        } catch (Exception e) {
+        } catch (Exception | AssertionError e) {
             LOGGER.error(String.format("Processing failed with error: torrent ID (%s), stage (%s)",
                     context.getTorrentId().orElse(null), stage.getClass().getName()), e);
             finalizer.ifPresent(f -> f.finalizeContext(context));

@@ -27,9 +27,8 @@ import bt.protocol.crypto.EncryptionPolicy;
 import bt.runtime.BtClient;
 import bt.runtime.BtRuntime;
 import bt.runtime.Config;
-import bt.torrent.order.PieceOrder;
-import bt.torrent.order.RandomizedRarestPieceOrder;
-import bt.torrent.order.SequentialPieceOrder;
+import bt.torrent.fileselector.AllTorrentFileSelector;
+import bt.torrent.fileselector.TorrentFileSelector;
 import com.google.inject.Module;
 import com.googlecode.lanterna.input.KeyStroke;
 import joptsimple.OptionException;
@@ -131,22 +130,23 @@ public class CliClient  {
                 .build();
 
         Storage storage = new FileSystemStorage(options.getTargetDirectory());
-        final PieceOrder pieceOrder =
-                options.downloadSequentially() ? new SequentialPieceOrder() : new RandomizedRarestPieceOrder();
-
-        BtClientBuilder clientBuilder = Bt.client(runtime)
-                .storage(storage)
-                .pieceOrder(pieceOrder);
+        BtClientBuilder clientBuilder = Bt.client(runtime).storage(storage);
 
         SessionStatePrinter printer = options.shouldDisableUi() ?
                 null : SessionStatePrinter.createKeyInputAwarePrinter(keyBindings);
-        if (!options.shouldDownloadAllFiles()) {
-            if (printer == null) {
-                clientBuilder.fileSelector(new CliFileSelector());
-            } else {
-                clientBuilder.fileSelector(new CliFileSelector(printer));
-            }
-        }
+
+        final boolean selectAll = options.shouldDownloadAllFiles();
+        final boolean rarest = !options.downloadSequentially();
+        final boolean random = !options.downloadSequentially();
+
+        final TorrentFileSelector fileSelector = selectAll
+                ? new AllTorrentFileSelector(rarest, random)
+                : printer == null
+                        ? new CliFileSelector(rarest, random)
+                        : new CliFileSelector(rarest, random, printer::pause, printer::resume);
+
+        clientBuilder.fileSelector(fileSelector);
+
         if (printer != null) {
             clientBuilder.afterTorrentFetched(printer::setTorrent);
         }

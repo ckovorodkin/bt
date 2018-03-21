@@ -24,13 +24,16 @@ import bt.processor.ProcessingContext;
 import bt.torrent.PiecesStatistics;
 import bt.torrent.TorrentSessionState;
 import bt.torrent.TrackerAnnouncer;
+import bt.torrent.fileselector.AllTorrentFileSelector;
 import bt.torrent.fileselector.TorrentFileSelector;
 import bt.torrent.messaging.Assignments;
 import bt.torrent.messaging.MessageRouter;
-import bt.torrent.order.PieceOrder;
+import bt.torrent.order.PieceOrderDelegate;
 
 import java.util.Optional;
 import java.util.function.Supplier;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Accumulates data, that is specific to standard torrent download/upload.
@@ -39,8 +42,8 @@ import java.util.function.Supplier;
  */
 public class TorrentContext implements ProcessingContext {
 
-    private final PieceOrder pieceOrder;
-    private final Optional<TorrentFileSelector> fileSelector;
+    private final PieceOrderDelegate pieceOrder;
+    private final TorrentFileSelector fileSelector;
     private final Storage storage;
     private final Supplier<Torrent> torrentSupplier;
 
@@ -54,27 +57,22 @@ public class TorrentContext implements ProcessingContext {
     private volatile PiecesStatistics pieceStatistics;
     private volatile TrackerAnnouncer announcer;
 
-    public TorrentContext(PieceOrder pieceOrder,
-                          TorrentFileSelector fileSelector,
-                          Storage storage,
-                          Supplier<Torrent> torrentSupplier) {
-        this.pieceOrder = pieceOrder;
-        this.fileSelector = Optional.ofNullable(fileSelector);
+    public TorrentContext(Storage storage, Supplier<Torrent> torrentSupplier) {
+        this(new AllTorrentFileSelector(), storage, torrentSupplier);
+    }
+
+    public TorrentContext(TorrentFileSelector fileSelector, Storage storage, Supplier<Torrent> torrentSupplier) {
+        this.pieceOrder = new PieceOrderDelegate();
+        this.fileSelector = requireNonNull(fileSelector);
         this.storage = storage;
         this.torrentSupplier = torrentSupplier;
     }
 
-    public TorrentContext(PieceOrder pieceOrder,
-                          Storage storage,
-                          Supplier<Torrent> torrentSupplier) {
-        this(pieceOrder, null, storage, torrentSupplier);
-    }
-
-    public PieceOrder getPieceOrder() {
+    public PieceOrderDelegate getPieceOrder() {
         return pieceOrder;
     }
 
-    public Optional<TorrentFileSelector> getFileSelector() {
+    public TorrentFileSelector getFileSelector() {
         return fileSelector;
     }
 

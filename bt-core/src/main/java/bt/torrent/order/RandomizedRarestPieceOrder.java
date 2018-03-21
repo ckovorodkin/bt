@@ -8,16 +8,18 @@ import java.util.BitSet;
 /**
  * @author Oleg Ermolaev Date: 08.02.2018 23:41
  */
-public class RandomizedRarestPieceOrder implements PieceOrder {
+public class RandomizedRarestPieceOrder extends AbstractPieceOrder {
     private final RandomSetBit randomSetBit;
 
-    public RandomizedRarestPieceOrder() {
+    public RandomizedRarestPieceOrder(BitSet mask) {
+        super(mask);
         this.randomSetBit = new RandomSetBit();
     }
 
     @Override
     public int next(BitSetAccumulator accumulator, BitSet mask) {
-        final BitSet rarest = accumulator.getRarest(mask);
+        final BitSet complexMask = getComplexMask(mask);
+        final BitSet rarest = accumulator.getRarest(complexMask);
         return randomSetBit.apply(rarest);
     }
 }

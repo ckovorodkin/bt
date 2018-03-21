@@ -16,35 +16,40 @@
 
 package bt.processor.torrent;
 
-import bt.data.Bitfield;
 import bt.data.TorrentFileInfo;
 import bt.metainfo.Torrent;
 import bt.processor.ProcessingStage;
 import bt.processor.TerminateOnErrorProcessingStage;
 import bt.processor.listener.ProcessingEvent;
-import bt.runtime.Config;
 import bt.torrent.TorrentDescriptor;
 import bt.torrent.TorrentRegistry;
 import bt.torrent.fileselector.SelectionResult;
+import bt.torrent.order.ComplexPieceOrder;
+import bt.torrent.order.PieceOrder;
+import bt.torrent.order.RandomPieceOrder;
+import bt.torrent.order.RandomizedRarestPieceOrder;
+import bt.torrent.order.RarestPieceOrder;
+import bt.torrent.order.SequentialPieceOrder;
 
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.function.Predicate;
+import java.util.Objects;
 import java.util.stream.IntStream;
 
+import static bt.torrent.fileselector.SelectionResult.SKIP_PRIORITY;
+import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
 
 public class ChooseFilesStage<C extends TorrentContext> extends TerminateOnErrorProcessingStage<C> {
-    private TorrentRegistry torrentRegistry;
-    private Config config;
+    private final TorrentRegistry torrentRegistry;
 
-    public ChooseFilesStage(ProcessingStage<C> next,
-                            TorrentRegistry torrentRegistry,
-                            Config config) {
+    public ChooseFilesStage(ProcessingStage<C> next, TorrentRegistry torrentRegistry) {
         super(next);
         this.torrentRegistry = torrentRegistry;
-        this.config = config;
     }
 
     @Override
@@ -52,43 +57,108 @@ public class ChooseFilesStage<C extends TorrentContext> extends TerminateOnError
         Torrent torrent = context.getTorrent().get();
         TorrentDescriptor descriptor = torrentRegistry.getDescriptor(torrent.getTorrentId()).get();
 
-        final Predicate<TorrentFileInfo> predicate = context.getFileSelector().map(selector -> {
-            List<TorrentFileInfo> files = descriptor.getDataDescriptor().getTorrentFileInfos();
-            List<SelectionResult> selectionResults = selector.selectFiles(files);
-            if (selectionResults.size() != files.size()) {
-                throw new IllegalStateException("Invalid number of selection results");
-            }
-            //noinspection UnnecessaryLocalVariable
-            final Predicate<TorrentFileInfo> selectionResultPredicate =
-                    torrentFileInfo -> !selectionResults.get(torrentFileInfo.getIndex()).shouldSkip();
-            return selectionResultPredicate;
-        }).orElse(torrentFileInfo -> true);
+        final List<TorrentFileInfo> files = descriptor.getDataDescriptor().getTorrentFileInfos();
+        final Collection<SelectionResult> selectionResults = context.getFileSelector().selectFiles(files);
 
-        final Collection<TorrentFileInfo> selectedFiles =
-                descriptor.getDataDescriptor().getTorrentFileInfos().stream().filter(predicate).collect(toList());
+        final Collection<PieceOrder> pieceOrders = new ArrayList<>();
 
-        Bitfield bitfield = descriptor.getDataDescriptor().getBitfield();
-        BitSet selectedPieces = getPieces(selectedFiles);
-        BitSet skippedPieces = new BitSet();
-        skippedPieces.or(selectedPieces);
-        skippedPieces.flip(0, bitfield.getPiecesTotal());
-        updateSkippedPieces(bitfield, skippedPieces);
+        selectionResults
+                .stream()
+                .map(SelectionResult::getPriority)
+                .filter(priority -> priority > SKIP_PRIORITY)
+                .collect(toSet())
+                .stream()
+                .sorted((o1, o2) -> o2 - o1)
+                .forEach(priority -> selectionResults
+                        .stream()
+                        .filter(selectionResult -> selectionResult.getPriority() == priority)
+                        .collect(groupingBy(PieceOrderTypeKey::create, LinkedHashMap::new, toList()))
+                        .forEach((pieceOrderTypeKey, byPriorityAndPieceOrderSelectionResults) -> {
+                            final BitSet complexMask = byPriorityAndPieceOrderSelectionResults
+                                    .stream()
+                                    .map(SelectionResult::getTorrentFileInfo)
+                                    .map(this::getPieces)
+                                    .collect(BitSet::new, BitSet::or, BitSet::or);
+                            assert complexMask.cardinality() > 0;
+                            final PieceOrder pieceOrder = createPieceOrder(pieceOrderTypeKey, complexMask);
+                            pieceOrders.add(pieceOrder);
+                        }));
+
+        final PieceOrder pieceOrder = new ComplexPieceOrder(pieceOrders);
+
+        assert getMaskDifferentBitCount(selectionResults, pieceOrder) == 0;
+
+        context.getPieceOrder().setDelegate(pieceOrder);
     }
 
-    private void updateSkippedPieces(Bitfield bitfield, BitSet skippedPieces) {
-        IntStream.range(0, bitfield.getPiecesTotal()).filter(skippedPieces::get).forEach(bitfield::skip);
+    private int getMaskDifferentBitCount(Collection<SelectionResult> selectionResults, PieceOrder pieceOrder) {
+        final BitSet mask = selectionResults
+                .stream()
+                .filter(selectionResult -> selectionResult.getPriority() > SKIP_PRIORITY)
+                .map(SelectionResult::getTorrentFileInfo)
+                .map(this::getPieces)
+                .collect(BitSet::new, BitSet::or, BitSet::or);
+        mask.xor(pieceOrder.getMask());
+        return mask.cardinality();
     }
 
-    private BitSet getPieces(Collection<TorrentFileInfo> torrentFiles) {
+    private BitSet getPieces(TorrentFileInfo torrentFileInfo) {
         final BitSet pieces = new BitSet();
-        torrentFiles.forEach(torrentFile -> IntStream
-                .range(torrentFile.getFirstPieceIndex(), torrentFile.getLastPieceIndex())
-                .forEach(pieces::set));
+        IntStream
+                .range(torrentFileInfo.getFirstPieceIndex(), torrentFileInfo.getLastPieceIndex() + 1)
+                .forEach(pieces::set);
         return pieces;
+    }
+
+    private PieceOrder createPieceOrder(PieceOrderTypeKey typeKey, BitSet mask) {
+        if (typeKey.isRarest()) {
+            return typeKey.isRandom() ? new RandomizedRarestPieceOrder(mask) : new RarestPieceOrder(mask);
+        } else {
+            return typeKey.isRandom() ? new RandomPieceOrder(mask) : new SequentialPieceOrder(mask);
+        }
     }
 
     @Override
     public ProcessingEvent after() {
         return ProcessingEvent.FILES_CHOSEN;
+    }
+
+    private static class PieceOrderTypeKey {
+        private final boolean rarest;
+        private final boolean random;
+
+        private PieceOrderTypeKey(boolean rarest, boolean random) {
+            this.rarest = rarest;
+            this.random = random;
+        }
+
+        public static PieceOrderTypeKey create(SelectionResult selectionResult) {
+            return new PieceOrderTypeKey(selectionResult.isRarest(), selectionResult.isRandom());
+        }
+
+        public boolean isRarest() {
+            return rarest;
+        }
+
+        public boolean isRandom() {
+            return random;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            PieceOrderTypeKey that = (PieceOrderTypeKey) o;
+            return rarest == that.rarest && random == that.random;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(rarest, random);
+        }
     }
 }
