@@ -83,6 +83,7 @@ class DefaultDataDescriptor implements DataDescriptor {
                 final TorrentFile torrentFile = files.get(index);
                 final DefaultTorrentFileInfo torrentFileInfo = new DefaultTorrentFileInfo();
                 torrentFileInfo.setIndex(index);
+                torrentFileInfo.setPieceLength(chunkSize);
                 torrentFileInfo.setOffset(offset);
                 torrentFileInfo.setFirstPieceIndex((int) (offset / chunkSize));
                 offset += torrentFile.getSize();

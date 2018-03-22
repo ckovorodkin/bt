@@ -138,12 +138,21 @@ public class CliClient  {
         final boolean selectAll = options.shouldDownloadAllFiles();
         final boolean rarest = !options.downloadSequentially();
         final boolean random = !options.downloadSequentially();
+        final long prefetchHeadLength = options.getPrefetchHeadLength();
+        final long prefetchTailLength = options.getPrefetchTailLength();
 
-        final TorrentFileSelector fileSelector = selectAll
-                ? new AllTorrentFileSelector(rarest, random)
+        final TorrentFileSelector fileSelector = selectAll //br
+                ? new AllTorrentFileSelector(rarest, random, prefetchHeadLength, prefetchTailLength)
                 : printer == null
-                        ? new CliFileSelector(rarest, random)
-                        : new CliFileSelector(rarest, random, printer::pause, printer::resume);
+                        ? new CliFileSelector(rarest, random, prefetchHeadLength, prefetchTailLength)
+                        : new CliFileSelector(
+                                rarest,
+                                random,
+                                prefetchHeadLength,
+                                prefetchTailLength,
+                                printer::pause,
+                                printer::resume
+                        );
 
         clientBuilder.fileSelector(fileSelector);
 

@@ -74,6 +74,14 @@ public class ChooseFilesStage<C extends TorrentContext> extends TerminateOnError
                         .filter(selectionResult -> selectionResult.getPriority() == priority)
                         .collect(groupingBy(PieceOrderTypeKey::create, LinkedHashMap::new, toList()))
                         .forEach((pieceOrderTypeKey, byPriorityAndPieceOrderSelectionResults) -> {
+                            final BitSet prefetchComplexMask = byPriorityAndPieceOrderSelectionResults
+                                    .stream()
+                                    .map(this::getPrefetchPieces)
+                                    .collect(BitSet::new, BitSet::or, BitSet::or);
+                            if (prefetchComplexMask.cardinality() > 0) {
+                                final PieceOrder pieceOrder = createPieceOrder(pieceOrderTypeKey, prefetchComplexMask);
+                                pieceOrders.add(pieceOrder);
+                            }
                             final BitSet complexMask = byPriorityAndPieceOrderSelectionResults
                                     .stream()
                                     .map(SelectionResult::getTorrentFileInfo)
@@ -100,6 +108,41 @@ public class ChooseFilesStage<C extends TorrentContext> extends TerminateOnError
                 .collect(BitSet::new, BitSet::or, BitSet::or);
         mask.xor(pieceOrder.getMask());
         return mask.cardinality();
+    }
+
+    private BitSet getPrefetchPieces(SelectionResult selectionResult) {
+        final TorrentFileInfo torrentFileInfo = selectionResult.getTorrentFileInfo();
+        final long torrentFileSize = torrentFileInfo.getTorrentFile().getSize();
+
+        final long prefetchHeadLength = selectionResult.getPrefetchHeadLength();
+        final long prefetchTailLength = selectionResult.getPrefetchTailLength();
+        if (prefetchHeadLength + prefetchTailLength >= torrentFileSize) {
+            return getPieces(torrentFileInfo);
+        }
+
+        final BitSet pieces = new BitSet();
+
+        final long pieceLength = torrentFileInfo.getPieceLength();
+
+        if (prefetchHeadLength > 0) {
+            assert prefetchHeadLength < torrentFileSize;
+            final long prefetchHeadEndOffset = torrentFileInfo.getOffset() + prefetchHeadLength;
+            final int prefetchHeadEndPieceIndex = (int) ((prefetchHeadEndOffset + (pieceLength - 1)) / pieceLength);
+            assert prefetchHeadEndOffset <= prefetchHeadEndPieceIndex * pieceLength;
+            assert torrentFileInfo.getFirstPieceIndex() < prefetchHeadEndPieceIndex;
+            IntStream.range(torrentFileInfo.getFirstPieceIndex(), prefetchHeadEndPieceIndex).forEach(pieces::set);
+        }
+
+        if (prefetchTailLength > 0) {
+            assert prefetchTailLength < torrentFileSize;
+            final long prefetchTailStartOffset = torrentFileInfo.getOffset() + torrentFileSize - prefetchTailLength;
+            final int prefetchTailStartPieceIndex = (int) (prefetchTailStartOffset / pieceLength);
+            assert torrentFileInfo.getFirstPieceIndex() <= prefetchTailStartPieceIndex;
+            assert prefetchTailStartPieceIndex <= torrentFileInfo.getLastPieceIndex();
+            IntStream.range(prefetchTailStartPieceIndex, torrentFileInfo.getLastPieceIndex() + 1).forEach(pieces::set);
+        }
+
+        return pieces;
     }
 
     private BitSet getPieces(TorrentFileInfo torrentFileInfo) {

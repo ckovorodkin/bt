@@ -25,20 +25,35 @@ public class SelectionResult {
     public static final int SKIP_PRIORITY = 0;
     public static final int DEFAULT_PRIORITY = 2;
 
-    private TorrentFileInfo torrentFileInfo;
-    private int priority;
-    private boolean rarest;
-    private boolean random;
+    private final TorrentFileInfo torrentFileInfo;
+    private final int priority;
+    private final boolean rarest;
+    private final boolean random;
+    private final long prefetchHeadLength;
+    private final long prefetchTailLength;
 
     // later we may add more options:
     // - nofify-on-completed
     // etc.
 
-    public SelectionResult(TorrentFileInfo torrentFileInfo, int priority, boolean rarest, boolean random) {
+    public SelectionResult(TorrentFileInfo torrentFileInfo,
+                           int priority,
+                           boolean rarest,
+                           boolean random,
+                           long prefetchHeadLength,
+                           long prefetchTailLength) {
         this.torrentFileInfo = torrentFileInfo;
         this.priority = priority;
         this.random = random;
         this.rarest = rarest;
+        if (prefetchHeadLength < 0) {
+            throw new IllegalArgumentException(String.valueOf(prefetchHeadLength));
+        }
+        this.prefetchHeadLength = prefetchHeadLength;
+        if (prefetchTailLength < 0) {
+            throw new IllegalArgumentException(String.valueOf(prefetchTailLength));
+        }
+        this.prefetchTailLength = prefetchTailLength;
     }
 
     /**
@@ -67,5 +82,19 @@ public class SelectionResult {
      */
     public boolean isRandom() {
         return random;
+    }
+
+    /**
+     * @since 0.0
+     */
+    public long getPrefetchHeadLength() {
+        return prefetchHeadLength;
+    }
+
+    /**
+     * @since 0.0
+     */
+    public long getPrefetchTailLength() {
+        return prefetchTailLength;
     }
 }

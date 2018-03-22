@@ -411,7 +411,7 @@ public class SessionStatePrinter {
         int completeInt = (int) completePercents;
         int requiredInt = (int) requiredPercents;
 
-        int width = graphics.getSize().getColumns() - 25;
+        int width = graphics.getSize().getColumns() - 20;
         if (width < 0) {
             return "Progress: " + completeInt + "% (req.: " + requiredInt + "%)";
         }
@@ -432,7 +432,7 @@ public class SessionStatePrinter {
     private static final char[] CHARS = {' ', 'o', '8', '%', '#'};
 
     private String getPiecesBar(BitSet pieces, int length, double ratio) {
-        final int width = graphics.getSize().getColumns() - 25;
+        final int width = graphics.getSize().getColumns() - 20;
         if (width < 0) {
             return String.format("Pieces: %d / %d", pieces.cardinality(), length);
         }

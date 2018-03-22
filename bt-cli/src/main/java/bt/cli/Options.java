@@ -45,6 +45,8 @@ public class Options {
     private static final OptionSpec<String> ifaceOptionSpec;
     private static final OptionSpec<Integer> torrentPortOptionSpec;
     private static final OptionSpec<Void> shouldDownloadAllFiles;
+    private static final OptionSpec<Long> prefetchHeadLengthOptionSpec;
+    private static final OptionSpec<Long> prefetchTailLengthOptionSpec;
 
     private static final OptionParser parser;
 
@@ -83,6 +85,16 @@ public class Options {
                 .withRequiredArg().ofType(Integer.class);
 
         shouldDownloadAllFiles = parser.acceptsAll(Arrays.asList("a", "all"), "Download all files (file selection will be disabled)");
+
+        prefetchHeadLengthOptionSpec = parser.acceptsAll(
+                Arrays.asList("pH", "prefetchHead"),
+                "Prefetch specified amount of data in head of each file prior to downloading entire content"
+        ).withOptionalArg().ofType(Long.class).defaultsTo(0L);
+
+        prefetchTailLengthOptionSpec = parser.acceptsAll(
+                Arrays.asList("pT", "prefetchTail"),
+                "Prefetch specified amount of data in tail of each file prior to downloading entire content"
+        ).withOptionalArg().ofType(Long.class).defaultsTo(0L);
     }
 
     /**
@@ -103,7 +115,10 @@ public class Options {
                 opts.has(traceOptionSpec),
                 opts.valueOf(ifaceOptionSpec),
                 opts.valueOf(torrentPortOptionSpec),
-                opts.has(shouldDownloadAllFiles));
+                opts.has(shouldDownloadAllFiles),
+                opts.valueOf(prefetchHeadLengthOptionSpec),
+                opts.valueOf(prefetchTailLengthOptionSpec)
+        );
     }
 
     public static void printHelp(OutputStream out) {
@@ -126,6 +141,8 @@ public class Options {
     private String iface;
     private Integer port;
     private boolean downloadAllFiles;
+    private long prefetchHeadLength;
+    private long prefetchTailLength;
 
     public Options(File metainfoFile,
                    String magnetUri,
@@ -138,7 +155,9 @@ public class Options {
                    boolean traceLogging,
                    String iface,
                    Integer port,
-                   boolean downloadAllFiles) {
+                   boolean downloadAllFiles,
+                   long prefetchHeadLength,
+                   long prefetchTailLength) {
         this.metainfoFile = metainfoFile;
         this.magnetUri = magnetUri;
         this.targetDirectory = targetDirectory;
@@ -151,6 +170,8 @@ public class Options {
         this.iface = iface;
         this.port = port;
         this.downloadAllFiles = downloadAllFiles;
+        this.prefetchHeadLength = prefetchHeadLength;
+        this.prefetchTailLength = prefetchTailLength;
     }
 
     public File getMetainfoFile() {
@@ -195,5 +216,13 @@ public class Options {
 
     public boolean shouldDownloadAllFiles() {
         return downloadAllFiles;
+    }
+
+    public long getPrefetchHeadLength() {
+        return prefetchHeadLength;
+    }
+
+    public long getPrefetchTailLength() {
+        return prefetchTailLength;
     }
 }

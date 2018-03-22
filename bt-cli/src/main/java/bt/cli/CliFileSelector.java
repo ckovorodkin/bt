@@ -33,19 +33,28 @@ public class CliFileSelector extends TorrentFileSelector {
 
     private final boolean rarest;
     private final boolean random;
+    private final long prefetchHeadLength;
+    private final long prefetchTailLength;
 
     private final Optional<Runnable> beforeSelect;
     private final Optional<Runnable> afterSelect;
 
     private volatile boolean shutdown;
 
-    public CliFileSelector(boolean rarest, boolean random) {
-        this(rarest, random, null, null);
+    public CliFileSelector(boolean rarest, boolean random, long prefetchHeadLength, long prefetchTailLength) {
+        this(rarest, random, prefetchHeadLength, prefetchTailLength, null, null);
     }
 
-    public CliFileSelector(boolean rarest, boolean random, Runnable beforeSelect, Runnable afterSelect) {
+    public CliFileSelector(boolean rarest,
+                           boolean random,
+                           long prefetchHeadLength,
+                           long prefetchTailLength,
+                           Runnable beforeSelect,
+                           Runnable afterSelect) {
         this.rarest = rarest;
         this.random = random;
+        this.prefetchHeadLength = prefetchHeadLength;
+        this.prefetchTailLength = prefetchTailLength;
         this.beforeSelect = Optional.of(beforeSelect);
         this.afterSelect = Optional.of(afterSelect);
         registerShutdownHook();
@@ -76,10 +85,24 @@ public class CliFileSelector extends TorrentFileSelector {
                         throw new IllegalStateException("EOF");
                     }
                     case '\n': { // <Enter>
-                        return new SelectionResult(torrentFileInfo, DEFAULT_PRIORITY, rarest, random);
+                        return new SelectionResult(
+                                torrentFileInfo,
+                                DEFAULT_PRIORITY,
+                                rarest,
+                                random,
+                                prefetchHeadLength,
+                                prefetchTailLength
+                        );
                     }
                     case 0x1B: { // <Esc>
-                        return new SelectionResult(torrentFileInfo, SKIP_PRIORITY, rarest, random);
+                        return new SelectionResult(
+                                torrentFileInfo,
+                                SKIP_PRIORITY,
+                                rarest,
+                                random,
+                                prefetchHeadLength,
+                                prefetchTailLength
+                        );
                     }
                     default: {
                         System.out.println(ILLEGAL_KEYPRESS_WARNING);

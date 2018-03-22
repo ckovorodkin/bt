@@ -24,6 +24,7 @@ import bt.metainfo.TorrentFile;
 public class DefaultTorrentFileInfo implements TorrentFileInfo {
     private int index;
     private long offset;
+    private long pieceLength;
     private int firstPieceIndex;
     private int lastPieceIndex;
     private TorrentFile torrentFile;
@@ -45,6 +46,15 @@ public class DefaultTorrentFileInfo implements TorrentFileInfo {
 
     public void setOffset(long offset) {
         this.offset = offset;
+    }
+
+    @Override
+    public long getPieceLength() {
+        return pieceLength;
+    }
+
+    public void setPieceLength(long pieceLength) {
+        this.pieceLength = pieceLength;
     }
 
     @Override

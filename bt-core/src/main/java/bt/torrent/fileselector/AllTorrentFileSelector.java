@@ -26,18 +26,28 @@ import static bt.torrent.fileselector.SelectionResult.DEFAULT_PRIORITY;
 public class AllTorrentFileSelector extends TorrentFileSelector {
     private final boolean rarest;
     private final boolean random;
+    private final long prefetchHeadLength;
+    private final long prefetchTailLength;
 
     public AllTorrentFileSelector() {
-        this(true, true);
+        this(true, true, 0, 0);
     }
 
-    public AllTorrentFileSelector(boolean rarest, boolean random) {
+    public AllTorrentFileSelector(boolean rarest, boolean random, long prefetchHeadLength, long prefetchTailLength) {
         this.rarest = rarest;
         this.random = random;
+        this.prefetchHeadLength = prefetchHeadLength;
+        this.prefetchTailLength = prefetchTailLength;
     }
 
     @Override
     protected SelectionResult select(TorrentFileInfo torrentFileInfo) {
-        return new SelectionResult(torrentFileInfo, DEFAULT_PRIORITY, rarest, random);
+        return new SelectionResult(torrentFileInfo,
+                DEFAULT_PRIORITY,
+                rarest,
+                random,
+                prefetchHeadLength,
+                prefetchTailLength
+        );
     }
 }

@@ -26,6 +26,8 @@ public interface TorrentFileInfo {
 
     long getOffset();
 
+    long getPieceLength();
+
     int getFirstPieceIndex();
 
     int getLastPieceIndex();
