@@ -76,6 +76,11 @@ public interface TorrentSessionState {
     int getPiecesNotSkipped();
 
     /**
+     * @since 0.0
+     */
+    BitSet getProcessingPieces();
+
+    /**
      * @return BitSet of pieces, that status is {@link bt.data.Bitfield.PieceStatus#COMPLETE_VERIFIED}
      * @see bt.data.Bitfield.PieceStatus
      * @since 0.0

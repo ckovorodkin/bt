@@ -19,6 +19,7 @@ package bt.torrent.order;
 import bt.torrent.BitSetAccumulator;
 
 import java.util.BitSet;
+import java.util.Optional;
 
 /**
  * @author Oleg Ermolaev Date: 18.03.2018 4:23
@@ -43,6 +44,7 @@ public class PieceOrderDelegate implements PieceOrder {
 
     @Override
     public BitSet getMask() {
+        final PieceOrder delegate = this.delegate;
         if (delegate == null) {
             return new BitSet();
         }
@@ -51,9 +53,19 @@ public class PieceOrderDelegate implements PieceOrder {
 
     @Override
     public int next(BitSetAccumulator accumulator, BitSet mask) {
+        final PieceOrder delegate = this.delegate;
         if (delegate == null) {
             return -1;
         }
         return delegate.next(accumulator, mask);
+    }
+
+    @Override
+    public Optional<BitSet> getCurrentMask(int pieceIndex) {
+        final PieceOrder delegate = this.delegate;
+        if (delegate == null) {
+            return Optional.empty();
+        }
+        return delegate.getCurrentMask(pieceIndex);
     }
 }

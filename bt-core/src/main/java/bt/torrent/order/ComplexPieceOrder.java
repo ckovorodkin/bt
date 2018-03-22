@@ -20,6 +20,7 @@ import bt.torrent.BitSetAccumulator;
 
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.Optional;
 
 /**
  * @author Oleg Ermolaev Date: 18.03.2018 2:53
@@ -50,5 +51,16 @@ public class ComplexPieceOrder extends AbstractPieceOrder {
             }
         }
         return -1;
+    }
+
+    @Override
+    public Optional<BitSet> getCurrentMask(int pieceIndex) {
+        for (PieceOrder pieceOrder : pieceOrders) {
+            final Optional<BitSet> currentMask = pieceOrder.getCurrentMask(pieceIndex);
+            if (currentMask.isPresent()) {
+                return currentMask;
+            }
+        }
+        return Optional.empty();
     }
 }

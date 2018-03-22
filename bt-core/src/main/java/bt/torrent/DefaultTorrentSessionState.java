@@ -135,6 +135,34 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
     }
 
     @Override
+    public BitSet getProcessingPieces() {
+        if (descriptor.getDataDescriptor() == null) {
+            emptyPieces.clear();
+            return emptyPieces;
+        }
+        final Bitfield bitfield = descriptor.getDataDescriptor().getBitfield();
+        final BitSet remaining = bitfield.getRemaining();
+        final BitSetAccumulator accumulator = new BitSetAccumulator(bitfield.getPiecesTotal());
+        final Set<Peer> activePeers = getActivePeers();
+        activePeers.forEach(peer -> Optional
+                .ofNullable(getConnectionState(peer))
+                .map(ConnectionState::getPiece)
+                .ifPresent(pieceIndex -> peerManager.getPieces(peer).ifPresent(peerPieces -> {
+                    final BitSet currentMask = pieceOrder.getCurrentMask(pieceIndex).orElse(singleBitSet(pieceIndex));
+                    currentMask.and(peerPieces);
+                    currentMask.and(remaining);
+                    accumulator.add(currentMask);
+                })));
+        return accumulator.getOrdinal();
+    }
+
+    private static BitSet singleBitSet(int pieceIndex) {
+        final BitSet bitSet = new BitSet(pieceIndex + 1);
+        bitSet.set(pieceIndex);
+        return bitSet;
+    }
+
+    @Override
     public BitSet getPieces() {
         if (descriptor.getDataDescriptor() != null) {
             return descriptor.getDataDescriptor().getBitfield().getCompleteVerified();

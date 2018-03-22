@@ -17,6 +17,7 @@
 package bt.torrent.order;
 
 import java.util.BitSet;
+import java.util.Optional;
 
 /**
  * @author Oleg Ermolaev Date: 18.03.2018 2:48
@@ -37,5 +38,13 @@ public abstract class AbstractPieceOrder implements PieceOrder {
         final BitSet complexMask = (BitSet) this.mask.clone();
         complexMask.and(mask);
         return complexMask;
+    }
+
+    @Override
+    public Optional<BitSet> getCurrentMask(int pieceIndex) {
+        if (mask.get(pieceIndex)) {
+            return Optional.of(getMask());
+        }
+        return Optional.empty();
     }
 }

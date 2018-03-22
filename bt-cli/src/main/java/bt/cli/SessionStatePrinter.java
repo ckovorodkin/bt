@@ -36,7 +36,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.List;
@@ -69,6 +68,9 @@ public class SessionStatePrinter {
             "Downloading.. Peers: %s; Down: %11s; Up: %11s; %.2f%% complete; Remaining time: %s";
 
     private static final String LOG_ENTRY_SEED = "Seeding.. Peers: %s; Up: %11s";
+
+    private static final char[] BAR_CHARS = {' ', 'o', '8', '%', '#'};
+    private static final int BAR_PADDING = 22;
 
     public static SessionStatePrinter createKeyInputAwarePrinter(Collection<KeyStrokeBinding> bindings) {
         return new SessionStatePrinter() {
@@ -280,17 +282,25 @@ public class SessionStatePrinter {
 
             int completed = sessionState.getPiecesComplete();
             double completePercents = getCompletePercentage(sessionState.getPiecesTotal(), completed);
-            double requiredPercents = getTargetPercentage(sessionState.getPiecesTotal(), completed, sessionState.getPiecesRemaining());
-            graphics.putString(0, ++row, getProgressBar(completePercents, requiredPercents));
+            graphics.putString(0, ++row, getProgressBar(sessionState.getPiecesNotSkipped(),
+                    sessionState.getPiecesComplete(),
+                    sessionState.getPiecesRemaining(),
+                    sessionState.getPiecesTotal()
+            ));
 
             final double ratio = sessionState.getRatio();
             graphics.putString(0, ++row, getPiecesBar(sessionState.getPieces(), sessionState.getPiecesTotal(), ratio));
 
             boolean complete = sessionState.isComplete();
+            fillLine(++row, ' ');
             if (complete) {
-                graphics.putString(0, ++row, "Download is complete. Press Ctrl-C to stop seeding and exit.");
+                graphics.putString(0, row, "Download is complete. Press Ctrl-C to stop seeding and exit.");
             } else {
-                fillLine(++row, ' ');
+                graphics.putString(
+                        0,
+                        row,
+                        getProcessingBar(sessionState.getProcessingPieces(), sessionState.getPiecesTotal())
+                );
             }
 
             final Collection<PeerInfoView> peerInfos = sessionState.getPeerInfos();
@@ -407,36 +417,53 @@ public class SessionStatePrinter {
         return seconds < 0 ? "-" + positive : positive;
     }
 
-    private String getProgressBar(double completePercents, double requiredPercents) throws IOException {
-        int completeInt = (int) completePercents;
-        int requiredInt = (int) requiredPercents;
-
-        int width = graphics.getSize().getColumns() - 20;
+    private String getProgressBar(int piecesNotSkipped, int piecesComplete, int piecesRemaining, int piecesTotal) {
+        int width = graphics.getSize().getColumns() - BAR_PADDING;
         if (width < 0) {
+            double completePercents = getCompletePercentage(piecesTotal, piecesComplete);
+            double requiredPercents = getTargetPercentage(piecesNotSkipped, piecesTotal);
+            int completeInt = (int) completePercents;
+            int requiredInt = (int) requiredPercents;
             return "Progress: " + completeInt + "% (req.: " + requiredInt + "%)";
         }
 
-        String s = "Progress: [%-" + width + "s] %d%%";
+        String s = "Progress:   [%-" + width + "s] %.1f%%";
         char[] bar = new char[width];
-        double shrinkFactor = width / 100d;
-        int bound = (int) (completeInt * shrinkFactor);
-        Arrays.fill(bar, 0, bound, '#');
-        Arrays.fill(bar, bound, bar.length, ' ');
-        if (completeInt != requiredInt && requiredInt != 100) {
-            final int i = (int) (requiredInt * shrinkFactor);
-            bar[i] = '|';
+        final BitSet progress = new BitSet(piecesTotal);
+        progress.set(0, piecesComplete);
+        printBar(bar, progress, piecesTotal);
+        if (piecesRemaining > 0 && piecesNotSkipped < piecesTotal) {
+            bar[piecesNotSkipped * width / piecesTotal] = '|';
         }
-        return String.format(s, String.valueOf(bar), completeInt);
+        return String.format(s, String.valueOf(bar), getCompletePercentage(piecesTotal, piecesComplete));
     }
 
-    private static final char[] CHARS = {' ', 'o', '8', '%', '#'};
-
     private String getPiecesBar(BitSet pieces, int length, double ratio) {
-        final int width = graphics.getSize().getColumns() - 20;
+        final int width = graphics.getSize().getColumns() - BAR_PADDING;
         if (width < 0) {
             return String.format("Pieces: %d / %d", pieces.cardinality(), length);
         }
         final char[] chars = new char[width];
+        printBar(chars, pieces, length);
+        return String.format("Pieces:     [%s] %.2f", String.valueOf(chars), StrictMath.floor(ratio * 100.0) / 100.0);
+    }
+
+    private String getProcessingBar(BitSet processing, int length) {
+        final int width = graphics.getSize().getColumns() - BAR_PADDING;
+        if (width < 0) {
+            return String.format("Processing: %d / %d", processing.cardinality(), length);
+        }
+        final char[] chars = new char[width];
+        printBar(chars, processing, length);
+        final double percent = processing.cardinality() / (double) length * 100.0;
+        return String.format("Processing: [%s] %.2f%%",
+                String.valueOf(chars),
+                StrictMath.floor(percent * 100.0) / 100.0
+        );
+    }
+
+    private void printBar(char[] chars, BitSet pieces, int length) {
+        final int width = chars.length;
         for (int i = 0; i < width; ++i) {
             final int head = i * length / width;
             final int tail = (i + 1) * length / width;
@@ -459,22 +486,22 @@ public class SessionStatePrinter {
             }
             final int totalCount = emptyCount + fullCount;
             assert totalCount > 0;
-            int c = fullCount * (CHARS.length - 1) / totalCount;
+            int c = fullCount * (BAR_CHARS.length - 1) / totalCount;
             if (c == 0 && fullCount > 0) {
-                assert CHARS.length >= 2;
+                assert BAR_CHARS.length >= 2;
                 c = 1;
             }
-            chars[i] = CHARS[c];
+            //if (!transparent || c > 0) chars[i] = BAR_CHARS[c];
+            chars[i] = BAR_CHARS[c];
         }
-        return String.format("Pieces:   [%s] %.2f", String.valueOf(chars), StrictMath.floor(ratio * 100.0) / 100.0);
     }
 
     private double getCompletePercentage(int total, int completed) {
         return completed / ((double) total) * 100;
     }
 
-    private double getTargetPercentage(int total, int completed, int remaining) {
-        return (completed + remaining) / ((double) total) * 100;
+    private double getTargetPercentage(int notSkipped, int total) {
+        return notSkipped / ((double) total) * 100;
     }
 
     private void clearScreen() {
