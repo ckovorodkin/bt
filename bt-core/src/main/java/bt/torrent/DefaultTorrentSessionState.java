@@ -79,7 +79,7 @@ public class DefaultTorrentSessionState implements TorrentSessionState {
             return false;
         }
         final Bitfield bitfield = descriptor.getDataDescriptor().getBitfield();
-        return bitfield.getPiecesVerified() == bitfield.getPiecesTotal() && bitfield.getPiecesRemaining() == 0;
+        return bitfield.getPiecesVerified() == bitfield.getPiecesTotal() && worker.getRemaining().cardinality() == 0;
     }
 
     @Override

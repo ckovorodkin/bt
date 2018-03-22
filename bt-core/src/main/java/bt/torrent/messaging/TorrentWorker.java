@@ -375,6 +375,10 @@ public class TorrentWorker {
         return (worker == null) ? null : worker.getConnectionState();
     }
 
+    public BitSet getRemaining() {
+        return assignments.getRemaining();
+    }
+
     private static abstract class PeerEvent {
         private final Peer peer;
 

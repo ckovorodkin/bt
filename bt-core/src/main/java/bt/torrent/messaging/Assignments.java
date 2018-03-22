@@ -100,7 +100,7 @@ public class Assignments {
             buf.append("Trying to claim next assignment for peer ");
             buf.append(peer);
             buf.append(". Number of remaining pieces: ");
-            buf.append(localBitfield.getPiecesRemaining());
+            buf.append(getRemaining().cardinality());
             buf.append(", number of pieces in progress: ");
             buf.append(assignedPieces.cardinality());
             buf.append(", endgame: ").append(endgame);
@@ -119,9 +119,10 @@ public class Assignments {
     }
 
     private boolean isEndgame() {
+        final BitSet remaining = getRemaining();
         // if all remaining pieces are requested,
         // that would mean that we have entered the "endgame" mode
-        return localBitfield.getPiecesRemaining() <= assignedPieces.cardinality();
+        return remaining.cardinality() <= assignedPieces.cardinality();
     }
 
     private Assignment assign(Peer peer, int piece) {
@@ -159,15 +160,21 @@ public class Assignments {
     }
 
     private BitSet getMask(boolean endgame) {
-        // verified && !complete
-        final BitSet mask = localBitfield.getRemaining();
         // verified && !skipped && !complete
-        mask.and(pieceOrder.getMask());
+        final BitSet mask = getRemaining();
         if (!endgame) {
             // verified && !skipped && !complete && !assigned
             mask.andNot(assignedPieces);
         }
         return mask;
+    }
+
+    public BitSet getRemaining() {
+        // verified && !complete
+        final BitSet remaining = localBitfield.getRemaining();
+        // verified && !skipped && !complete
+        remaining.and(pieceOrder.getMask());
+        return remaining;
     }
 
     private boolean hasInterestingPieces(Peer peer, BitSet mask) {
