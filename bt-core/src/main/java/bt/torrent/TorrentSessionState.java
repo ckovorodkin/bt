@@ -58,6 +58,7 @@ public interface TorrentSessionState {
 
     /**
      * @return Number of pieces, that the local client will download
+     * @see TorrentSessionState#isComplete
      * @since 1.0
      */
     int getPiecesRemaining();

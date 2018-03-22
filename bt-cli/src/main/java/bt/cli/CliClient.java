@@ -236,7 +236,7 @@ public class CliClient  {
         try {
             client.startAsync(state -> {
                 printer.ifPresent(p -> p.print(state));
-                if (!options.shouldSeedAfterDownloaded() && state.getPiecesRemaining() == 0) {
+                if (!options.shouldSeedAfterDownloaded() && state.isComplete()) {
                     runtime.shutdown();
                 }
             }, 1000);
