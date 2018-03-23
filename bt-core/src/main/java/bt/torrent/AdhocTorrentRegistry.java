@@ -16,6 +16,7 @@
 
 package bt.torrent;
 
+import bt.data.DataDescriptor;
 import bt.data.IDataDescriptorFactory;
 import bt.data.Storage;
 import bt.event.EventSink;
@@ -23,6 +24,8 @@ import bt.metainfo.Torrent;
 import bt.metainfo.TorrentId;
 import bt.service.IRuntimeLifecycleBinder;
 import com.google.inject.Inject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -40,6 +43,7 @@ import java.util.concurrent.ConcurrentMap;
  * Hence, is not a part of the public API and is a subject to change.</b></p>
  */
 public class AdhocTorrentRegistry implements TorrentRegistry {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AdhocTorrentRegistry.class);
 
     private IDataDescriptorFactory dataDescriptorFactory;
     private IRuntimeLifecycleBinder lifecycleBinder;
@@ -151,11 +155,12 @@ public class AdhocTorrentRegistry implements TorrentRegistry {
 
     private void addShutdownHook(TorrentId torrentId, TorrentDescriptor descriptor) {
         lifecycleBinder.onShutdown("Closing data descriptor for torrent ID: " + torrentId, () -> {
-            if (descriptor.getDataDescriptor() != null) {
+            final DataDescriptor dataDescriptor = descriptor.getDataDescriptor();
+            if (dataDescriptor != null) {
                 try {
-                    descriptor.getDataDescriptor().close();
+                    dataDescriptor.close();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    LOGGER.error("Failed to close data descriptor for torrent ID: " + torrentId, e);
                 }
             }
         });
