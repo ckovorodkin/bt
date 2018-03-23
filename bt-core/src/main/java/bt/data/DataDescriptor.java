@@ -16,8 +16,6 @@
 
 package bt.data;
 
-import bt.metainfo.TorrentFile;
-
 import java.io.Closeable;
 import java.util.List;
 
@@ -47,12 +45,4 @@ public interface DataDescriptor extends Closeable {
      * @since 0.0
      */
     List<TorrentFileInfo> getTorrentFileInfos();
-
-    /**
-     * Get a list of files that a given piece index intersects
-     *
-     * @return A list of files that a given piece index intersects
-     * @since 1.7
-     */
-    List<TorrentFile> getFilesForPiece(int pieceIndex);
 }

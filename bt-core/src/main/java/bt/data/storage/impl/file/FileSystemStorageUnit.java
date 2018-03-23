@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016—2017 Andrei Tomashpolskiy and individual contributors.
+ * Copyright (c) 2016—2018 Andrei Tomashpolskiy and individual contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package bt.data.file;
+package bt.data.storage.impl.file;
 
 import bt.BtException;
 import bt.data.StorageUnit;
@@ -38,9 +38,9 @@ class FileSystemStorageUnit implements StorageUnit {
 
     private volatile boolean closed;
 
-    FileSystemStorageUnit(Path root, String path, long capacity) {
-        this.file = root.resolve(path);
-        this.parent = file.getParent();
+    FileSystemStorageUnit(Path file, long capacity) {
+        this.file = file;
+        this.parent = this.file.getParent();
         this.capacity = capacity;
         this.closed = true;
     }

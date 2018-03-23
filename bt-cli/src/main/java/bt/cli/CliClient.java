@@ -20,7 +20,7 @@ import bt.Bt;
 import bt.BtClientBuilder;
 import bt.cli.Options.LogLevel;
 import bt.data.Storage;
-import bt.data.file.FileSystemStorage;
+import bt.data.storage.impl.file.FileSystemStorage;
 import bt.dht.DHTConfig;
 import bt.dht.DHTModule;
 import bt.protocol.crypto.EncryptionPolicy;

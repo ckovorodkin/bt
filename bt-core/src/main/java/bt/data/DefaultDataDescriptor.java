@@ -19,18 +19,14 @@ package bt.data;
 import bt.BtException;
 import bt.data.range.BlockRange;
 import bt.data.range.Ranges;
+import bt.data.storage.Storage;
 import bt.metainfo.Torrent;
-import bt.metainfo.TorrentFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 class DefaultDataDescriptor implements DataDescriptor {
 
@@ -43,9 +39,6 @@ class DefaultDataDescriptor implements DataDescriptor {
     private Bitfield bitfield;
 
     private List<TorrentFileInfo> torrentFileInfos;
-
-    private Map<Integer, List<TorrentFile>> filesForPieces;
-    private Set<StorageUnit> storageUnits;
 
     private ChunkVerifier verifier;
 
@@ -61,8 +54,6 @@ class DefaultDataDescriptor implements DataDescriptor {
     }
 
     private void init(long transferBlockSize) {
-        List<TorrentFile> files = torrent.getFiles();
-
         long totalSize = torrent.getSize();
         long chunkSize = torrent.getChunkSize();
 
@@ -71,39 +62,15 @@ class DefaultDataDescriptor implements DataDescriptor {
         }
 
         int chunksTotal = (int) Math.ceil(totalSize / chunkSize);
-        Map<Integer, List<TorrentFile>> filesForPieces = new HashMap<>((int)(chunksTotal / 0.75d) + 1);
         List<ChunkDescriptor> chunks = new ArrayList<>(chunksTotal + 1);
 
         Iterator<byte[]> chunkHashes = torrent.getChunkHashes().iterator();
 
-        final List<TorrentFileInfo> torrentFileInfos = new ArrayList<>(files.size() + 1);
-        {
-            long offset = 0;
-            for (int index = 0; index < files.size(); index++) {
-                final TorrentFile torrentFile = files.get(index);
-                final DefaultTorrentFileInfo torrentFileInfo = new DefaultTorrentFileInfo();
-                torrentFileInfo.setIndex(index);
-                torrentFileInfo.setPieceLength(chunkSize);
-                torrentFileInfo.setOffset(offset);
-                torrentFileInfo.setFirstPieceIndex((int) (offset / chunkSize));
-                offset += torrentFile.getSize();
-                torrentFileInfo.setLastPieceIndex((int) (offset / chunkSize));
-                torrentFileInfo.setTorrentFile(torrentFile);
-                torrentFileInfo.setStorageUnit(storage.getUnit(torrent, torrentFile));
-                torrentFileInfos.add(torrentFileInfo);
-            }
-        }
-
-        Map<StorageUnit, TorrentFile> storageUnitsToFilesMap = new LinkedHashMap<>((int)(files.size() / 0.75d) + 1);
-        torrentFileInfos
-                .stream()
-                .forEach(torrentFileInfo -> storageUnitsToFilesMap.put(torrentFileInfo.getStorageUnit(),
-                        torrentFileInfo.getTorrentFile()
-                ));
+        final List<TorrentFileInfo> torrentFileInfos = storage.register(torrent);
 
         // filter out empty files (and create them at once)
         List<StorageUnit> nonEmptyStorageUnits = new ArrayList<>();
-        for (StorageUnit unit : storageUnitsToFilesMap.keySet()) {
+        torrentFileInfos.stream().map(TorrentFileInfo::getStorageUnit).forEach(unit -> {
             if (unit.capacity() > 0) {
                 nonEmptyStorageUnits.add(unit);
             } else {
@@ -114,7 +81,7 @@ class DefaultDataDescriptor implements DataDescriptor {
                     LOGGER.warn("Failed to create empty storage unit: " + unit, e);
                 }
             }
-        }
+        });
 
         if (nonEmptyStorageUnits.size() > 0) {
             long limitInLastUnit = nonEmptyStorageUnits.get(nonEmptyStorageUnits.size() - 1).capacity();
@@ -132,10 +99,6 @@ class DefaultDataDescriptor implements DataDescriptor {
                     throw new BtException("Wrong number of chunk hashes in the torrent: too few");
                 }
 
-                List<TorrentFile> chunkFiles = new ArrayList<>();
-                subrange.visitUnits((unit, off1, lim1) -> chunkFiles.add(storageUnitsToFilesMap.get(unit)));
-                filesForPieces.put(chunks.size(), chunkFiles);
-
                 chunks.add(buildChunkDescriptor(subrange, transferBlockSize, chunkHashes.next()));
 
                 remaining -= chunkSize;
@@ -149,8 +112,6 @@ class DefaultDataDescriptor implements DataDescriptor {
         this.bitfield = buildBitfield(chunks);
         this.chunkDescriptors = chunks;
         this.torrentFileInfos = torrentFileInfos;
-        this.storageUnits = storageUnitsToFilesMap.keySet();
-        this.filesForPieces = filesForPieces;
     }
 
     private ChunkDescriptor buildChunkDescriptor(DataRange data, long blockSize, byte[] checksum) {
@@ -164,6 +125,7 @@ class DefaultDataDescriptor implements DataDescriptor {
     private Bitfield buildBitfield(List<ChunkDescriptor> chunks) {
         Bitfield bitfield = new Bitfield(chunks.size());
         verifier.verify(chunks, bitfield);
+        /*todo*/
         //new Thread(() -> verifier.verify(chunks, bitfield)).start();
         return bitfield;
     }
@@ -184,23 +146,8 @@ class DefaultDataDescriptor implements DataDescriptor {
     }
 
     @Override
-    public List<TorrentFile> getFilesForPiece(int pieceIndex) {
-        if (pieceIndex < 0 || pieceIndex >= bitfield.getPiecesTotal()) {
-            throw new IllegalArgumentException("Invalid piece index: " + pieceIndex +
-                    ", expected 0.." + bitfield.getPiecesTotal());
-        }
-        return filesForPieces.get(pieceIndex);
-    }
-
-    @Override
     public void close() {
-        storageUnits.forEach(unit -> {
-            try {
-                unit.close();
-            } catch (Exception e) {
-                LOGGER.error("Failed to close storage unit: " + unit);
-            }
-        });
+        storage.unregister(torrent);
     }
 
     @Override

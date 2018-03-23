@@ -16,15 +16,47 @@
 
 package yourip.mock;
 
+import bt.data.DefaultTorrentFileInfo;
 import bt.data.Storage;
 import bt.data.StorageUnit;
+import bt.data.TorrentFileInfo;
 import bt.metainfo.Torrent;
 import bt.metainfo.TorrentFile;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class MockStorage implements Storage {
 
     @Override
     public StorageUnit getUnit(Torrent torrent, TorrentFile torrentFile) {
-        return new MockStorageUnit();
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public List<TorrentFileInfo> register(Torrent torrent) {
+        final long pieceLength = torrent.getChunkSize();
+        final List<TorrentFile> files = torrent.getFiles();
+        final List<TorrentFileInfo> torrentFileInfos = new ArrayList<>(files.size() + 1);
+        long offset = 0;
+        for (int index = 0; index < files.size(); index++) {
+            final TorrentFile torrentFile = files.get(index);
+            final DefaultTorrentFileInfo torrentFileInfo = new DefaultTorrentFileInfo();
+            torrentFileInfo.setIndex(index);
+            torrentFileInfo.setPieceLength(pieceLength);
+            torrentFileInfo.setOffset(offset);
+            torrentFileInfo.setFirstPieceIndex((int) (offset / pieceLength));
+            offset += torrentFile.getSize();
+            torrentFileInfo.setLastPieceIndex((int) (offset / pieceLength));
+            torrentFileInfo.setTorrentFile(torrentFile);
+            torrentFileInfo.setStorageUnit(new MockStorageUnit());
+            torrentFileInfos.add(torrentFileInfo);
+        }
+        return torrentFileInfos;
+    }
+
+    @Override
+    public void unregister(Torrent torrent) {
+        // do nothing
     }
 }

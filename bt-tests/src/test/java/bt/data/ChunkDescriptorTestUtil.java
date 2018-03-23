@@ -20,6 +20,7 @@ import bt.data.range.BlockRange;
 import bt.data.range.Ranges;
 import bt.metainfo.Torrent;
 import bt.metainfo.TorrentFile;
+import bt.metainfo.TorrentId;
 import bt.tracker.AnnounceKey;
 
 import java.io.BufferedInputStream;
@@ -28,6 +29,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -63,6 +67,7 @@ public class ChunkDescriptorTestUtil {
     public static Torrent mockTorrent(String name, long size, long chunkSize, byte[][] chunkHashes, TorrentFile... files) {
         Torrent torrent = mock(Torrent.class);
 
+        when(torrent.getTorrentId()).thenReturn(fromName(name));
         when(torrent.getName()).thenReturn(name);
         when(torrent.getChunkHashes()).thenReturn(Arrays.asList(chunkHashes));
         when(torrent.getChunkSize()).thenReturn(chunkSize);
@@ -71,6 +76,16 @@ public class ChunkDescriptorTestUtil {
         when(torrent.getAnnounceKey()).thenReturn(Optional.of(new AnnounceKey("http://tracker.org/ann")));
 
         return torrent;
+    }
+
+    private static TorrentId fromName(String name) {
+        try {
+            return TorrentId.fromBytes(MessageDigest
+                    .getInstance("SHA-1")
+                    .digest(name.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static TorrentFile mockTorrentFile(long size, String... pathElements) {
@@ -96,7 +111,7 @@ public class ChunkDescriptorTestUtil {
                 throw new RuntimeException("Wrong number of bytes read: " + read + ", expected: " + size);
             }
         } catch (IOException e) {
-            throw new RuntimeException("Failed to read file: " + file.getPath());
+            throw new RuntimeException("Failed to read file: " + file.getPath(), e);
         }
         return bytes;
     }

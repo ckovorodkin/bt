@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016—2017 Andrei Tomashpolskiy and individual contributors.
+ * Copyright (c) 2016—2018 Andrei Tomashpolskiy and individual contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,26 @@
  * limitations under the License.
  */
 
-package bt.data;
+package bt.data.storage;
+
+import bt.data.TorrentFileInfo;
+import bt.metainfo.Torrent;
+
+import java.util.List;
 
 /**
- * Storage for a single torrent file
+ * Data back-end. Provides storage for torrent files.
  *
  * @since 1.0
  */
-//@Deprecated
-public interface StorageUnit extends bt.data.storage.StorageUnit{
+public interface Storage {
+    /**
+     * @since 0.0
+     */
+    List<TorrentFileInfo> register(Torrent torrent);
+
+    /**
+     * @since 0.0
+     */
+    void unregister(Torrent torrent);
 }

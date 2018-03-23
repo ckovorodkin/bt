@@ -24,7 +24,8 @@ import bt.metainfo.TorrentFile;
  *
  * @since 1.0
  */
-public interface Storage {
+//@Deprecated
+public interface Storage extends bt.data.storage.Storage {
 
     /**
      * Get a storage unit for a particular torrent file.
@@ -32,7 +33,9 @@ public interface Storage {
      * @param torrent Torrent metainfo
      * @param torrentFile Torrent file metainfo
      * @return Storage unit for a single torrent file
+     * @deprecated since 0.0
      * @since 1.0
      */
+    @Deprecated
     StorageUnit getUnit(Torrent torrent, TorrentFile torrentFile);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016—2017 Andrei Tomashpolskiy and individual contributors.
+ * Copyright (c) 2016—2018 Andrei Tomashpolskiy and individual contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,18 @@
  * limitations under the License.
  */
 
-package bt.data;
+package bt.data.storage.impl;
+
+import bt.metainfo.TorrentId;
+
+import java.nio.file.Path;
+import java.util.Map;
 
 /**
- * Storage for a single torrent file
- *
- * @since 1.0
+ * @author Oleg Ermolaev Date: 23.03.2018 22:32
  */
-//@Deprecated
-public interface StorageUnit extends bt.data.storage.StorageUnit{
+public interface TargetResolver {
+    Map<Integer, Path> resolve(TorrentId torrentId, Map<Integer, Path> pathMap);
+
+    Path resolve(TorrentId torrentId, int fileIndex, Path path);
 }

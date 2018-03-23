@@ -18,7 +18,7 @@ package bt.it.fixture;
 
 import bt.Bt;
 import bt.BtClientBuilder;
-import bt.data.file.FileSystemStorage;
+import bt.data.storage.impl.file.FileSystemStorage;
 import bt.magnet.MagnetUri;
 import bt.metainfo.Torrent;
 import bt.runtime.BtClient;

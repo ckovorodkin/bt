@@ -16,7 +16,7 @@
 
 package bt.data;
 
-import bt.data.file.FileSystemStorage;
+import bt.data.storage.impl.file.FileSystemStorage;
 import bt.metainfo.Torrent;
 import bt.metainfo.TorrentFile;
 import org.junit.rules.ExternalResource;
@@ -24,8 +24,9 @@ import org.junit.rules.ExternalResource;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import static java.nio.file.Files.createDirectories;
 import static java.nio.file.Files.delete;
@@ -40,7 +41,7 @@ class TestFileSystemStorage extends ExternalResource implements Storage {
     private volatile Storage delegate;
     private final Object lock;
 
-    private Collection<StorageUnit> units;
+    private final Set<Torrent> torrents;
 
     public TestFileSystemStorage() {
         rootDirectory = new File(ROOT_PATH).getAbsoluteFile().toPath();
@@ -49,15 +50,8 @@ class TestFileSystemStorage extends ExternalResource implements Storage {
         } catch (IOException e) {
             throw new RuntimeException("Failed to create directories: " + rootDirectory, e);
         }
-        units = new ArrayList<>();
+        torrents = new HashSet<>();
         lock = new Object();
-    }
-
-    @Override
-    public StorageUnit getUnit(Torrent torrent, TorrentFile torrentFile) {
-        StorageUnit unit = getDelegate().getUnit(torrent, torrentFile);
-        units.add(unit);
-        return unit;
     }
 
     private Storage getDelegate() {
@@ -76,11 +70,27 @@ class TestFileSystemStorage extends ExternalResource implements Storage {
     }
 
     @Override
+    public StorageUnit getUnit(Torrent torrent, TorrentFile torrentFile) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public List<TorrentFileInfo> register(Torrent torrent) {
+        torrents.add(torrent);
+        return getDelegate().register(torrent);
+    }
+
+    @Override
+    public void unregister(Torrent torrent) {
+        delegate.unregister(torrent);
+        torrents.remove(torrent);
+    }
+
+    @Override
     protected void after() {
         try {
-            for (StorageUnit unit : units) {
-                unit.close();
-            }
+            final Storage delegate = getDelegate();
+            torrents.forEach(delegate::unregister);
             deleteRecursive(rootDirectory);
         } catch (IOException e) {
             throw new RuntimeException(e);
