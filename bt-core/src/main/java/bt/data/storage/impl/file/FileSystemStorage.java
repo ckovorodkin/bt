@@ -59,11 +59,11 @@ public class FileSystemStorage implements Storage {
     private final Map<StorageUnit, Set<AccessorKey>> storageUnitAccessorKeysMap;
 
     public FileSystemStorage(Path rootDirectory) {
-        this(rootDirectory, new IdentityTargetResolver());
+        this(rootDirectory, new IdentityTargetResolver(rootDirectory));
     }
 
     public FileSystemStorage(Path rootDirectory, TargetResolver targetResolver) {
-        this.pathResolver = new FilePathResolver(rootDirectory);
+        this.pathResolver = new FilePathResolver(rootDirectory.getFileSystem());
         this.targetResolver = targetResolver;
 
         this.modificationLock = new Object();
@@ -80,7 +80,7 @@ public class FileSystemStorage implements Storage {
     @Override
     public List<TorrentFileInfo> register(Torrent torrent) {
         final Map<Integer, Path> resolvedPathMap = pathResolver.resolve(torrent);
-        final Map<Integer, Path> targetPathMap = targetResolver.resolve(torrent.getTorrentId(), resolvedPathMap);
+        final Map<Integer, Path> targetPathMap = targetResolver.resolve(torrent, resolvedPathMap);
 
         final TorrentId torrentId = torrent.getTorrentId();
         final long pieceLength = torrent.getChunkSize();

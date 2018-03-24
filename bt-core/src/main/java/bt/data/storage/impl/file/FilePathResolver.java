@@ -21,46 +21,67 @@ import bt.metainfo.Torrent;
 import bt.metainfo.TorrentFile;
 import bt.metainfo.TorrentId;
 
+import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import static java.nio.file.Files.isDirectory;
 
 /**
  * @author Oleg Ermolaev Date: 23.03.2018 6:37
  */
 public class FilePathResolver implements PathResolver {
-    private final Path rootDirectory;
+    private final FileSystem fileSystem;
     private final PathNormalizer pathNormalizer;
 
-    public FilePathResolver(Path rootDirectory) {
-        this.rootDirectory = rootDirectory;
-        this.pathNormalizer = new PathNormalizer(rootDirectory.getFileSystem());
+    public FilePathResolver(FileSystem fileSystem) {
+        this.fileSystem = fileSystem;
+        this.pathNormalizer = new PathNormalizer(fileSystem);
     }
 
     @Override
     public Map<Integer, Path> resolve(Torrent torrent) {
+        final LinkedHashMap<Integer, Path> resolvedMap = resolvePaths(torrent);
+        return resolveDuplicates(resolvedMap);
+    }
+
+    private LinkedHashMap<Integer, Path> resolvePaths(Torrent torrent) {
         final TorrentId torrentId = torrent.getTorrentId();
         final String name = torrent.getFiles().size() == 1 ? null : torrent.getName();
         final List<TorrentFile> files = torrent.getFiles();
-        final Map<Integer, Path> map = new HashMap<>();
-        final Set<Path> set = new HashSet<>();
+        // Using of LinkedHashMap ensures that resolveDuplicates() produces a time-constant result
+        final LinkedHashMap<Integer, Path> map = new LinkedHashMap<>((int) (files.size() / 0.75d));
         for (int index = 0; index < files.size(); index++) {
             final TorrentFile torrentFile = files.get(index);
             final List<String> pathElements = torrentFile.getPathElements();
             final Path resolved = resolve(torrentId, name, index, pathElements);
+            map.put(index, resolved);
+        }
+        return map;
+    }
+
+    private Map<Integer, Path> resolveDuplicates(LinkedHashMap<Integer, Path> resolvedMap) {
+        final Map<Integer, Path> map = new HashMap<>((int) (resolvedMap.size() / 0.75d));
+        final Set<Path> usedPaths = new HashSet<>((int) (resolvedMap.size() / 0.75d));
+        resolvedMap.values().stream().forEach(resolved -> {
+            Path parent = resolved.getParent();
+            while (parent != null) {
+                usedPaths.add(parent);
+                parent = parent.getParent();
+            }
+        });
+        resolvedMap.forEach((index, resolved) -> {
             Path file = resolved;
             int attempt = 1;
-            while (set.contains(file) || isDirectory(file)) {   //todo oe: check capacity mismatch
+            while (usedPaths.contains(file)) {
                 file = changeName(resolved, ++attempt);
             }
-            set.add(file);
+            usedPaths.add(file);
             map.put(index, file);
-        }
+        });
         return map;
     }
 
@@ -79,14 +100,8 @@ public class FilePathResolver implements PathResolver {
 
     @Override
     public Path resolve(TorrentId torrentId, String name, int fileIndex, List<String> path) {
-        final Path torrentDirectory;
-        if (name == null) {
-            torrentDirectory = rootDirectory;
-        } else {
-            final String normalizedName = pathNormalizer.normalize(name);
-            torrentDirectory = rootDirectory.resolve(normalizedName);
-        }
+        final String first = name == null ? "" : pathNormalizer.normalize(name);
         final String normalizedPath = pathNormalizer.normalize(path);
-        return torrentDirectory.resolve(normalizedPath);
+        return fileSystem.getPath(first, normalizedPath);
     }
 }

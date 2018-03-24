@@ -16,7 +16,7 @@
 
 package bt.data.storage.impl;
 
-import bt.metainfo.TorrentId;
+import bt.metainfo.Torrent;
 
 import java.nio.file.Path;
 import java.util.Map;
@@ -25,7 +25,7 @@ import java.util.Map;
  * @author Oleg Ermolaev Date: 23.03.2018 22:32
  */
 public interface TargetResolver {
-    Map<Integer, Path> resolve(TorrentId torrentId, Map<Integer, Path> pathMap);
+    Map<Integer, Path> resolve(Torrent torrent, Map<Integer, Path> pathMap);
 
-    Path resolve(TorrentId torrentId, int fileIndex, Path path);
+    Path resolve(Torrent torrent, int fileIndex, Path path);
 }

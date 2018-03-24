@@ -16,22 +16,31 @@
 
 package bt.data.storage.impl;
 
-import bt.metainfo.TorrentId;
+import bt.metainfo.Torrent;
 
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
  * @author Oleg Ermolaev Date: 23.03.2018 22:35
  */
 public class IdentityTargetResolver implements TargetResolver {
-    @Override
-    public Map<Integer, Path> resolve(TorrentId torrentId, Map<Integer, Path> pathMap) {
-        return pathMap;
+    private final Path rootDirectory;
+
+    public IdentityTargetResolver(Path rootDirectory) {
+        this.rootDirectory = rootDirectory;
     }
 
     @Override
-    public Path resolve(TorrentId torrentId, int fileIndex, Path path) {
-        return path;
+    public Map<Integer, Path> resolve(Torrent torrent, Map<Integer, Path> pathMap) {
+        final Map<Integer, Path> map = new HashMap<>((int) (pathMap.size() / 0.75d));
+        pathMap.forEach((fileIndex, path) -> map.put(fileIndex, resolve(torrent, fileIndex, path)));
+        return map;
+    }
+
+    @Override
+    public Path resolve(Torrent torrent, int fileIndex, Path path) {
+        return rootDirectory.resolve(path);
     }
 }
