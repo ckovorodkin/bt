@@ -30,6 +30,7 @@ public abstract class AbstractExecutionWrapper {
         wrap(runnable).run();
     }
 
+/*
     public <T> void accept(Consumer<T> consumer, T t) {
         wrap(consumer).accept(t);
     }
@@ -37,11 +38,13 @@ public abstract class AbstractExecutionWrapper {
     public <T, U> void accept(BiConsumer<T, U> biConsumer, T t, U u) {
         wrap(biConsumer).accept(t, u);
     }
+*/
 
-    public <U> U supply(Supplier<U> supplier) {
+    public <U> U get(Supplier<U> supplier) {
         return wrap(supplier).get();
     }
 
+/*
     public <T, R> R apply(Function<T, R> function, T t) {
         return wrap(function).apply(t);
     }
@@ -49,6 +52,7 @@ public abstract class AbstractExecutionWrapper {
     public <T, U, R> R apply(BiFunction<T, U, R> function, T t, U u) {
         return wrap(function).apply(t, u);
     }
+*/
 
     public Runnable wrap(Runnable runnable) {
         return isBypass() ? runnable : () -> wrapAndRun(runnable);
