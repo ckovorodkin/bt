@@ -18,7 +18,6 @@ package bt.net;
 
 import bt.CountingThreadFactory;
 import bt.event.EventSink;
-import bt.logging.MDCWrapper;
 import bt.metainfo.TorrentId;
 import bt.runtime.Config;
 import bt.service.IRuntimeLifecycleBinder;
@@ -40,6 +39,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+
+import static bt.logging.MDCWrapper.withMDCRemoteAddress;
 
 /**
  *<p><b>Note that this class implements a service.
@@ -188,7 +189,7 @@ public class PeerConnectionPool implements IPeerConnectionPool {
                 connections.visitConnections(connection -> {
                     Peer peer = connection.getRemotePeer();
                     if (connection.isClosed()) {
-                        new MDCWrapper().putRemoteAddress(peer).run(() -> {
+                        withMDCRemoteAddress(peer).run(() -> {
                             if (LOGGER.isDebugEnabled()) {
                                 LOGGER.debug("Removing closed peer connection: {}", peer);
                             }
@@ -196,7 +197,7 @@ public class PeerConnectionPool implements IPeerConnectionPool {
                         });
                     } else if (System.currentTimeMillis() - connection.getLastActive()
                             >= peerConnectionInactivityThreshold.toMillis()) {
-                        new MDCWrapper().putRemoteAddress(peer).run(() -> {
+                        withMDCRemoteAddress(peer).run(() -> {
                             if (LOGGER.isDebugEnabled()) {
                                 LOGGER.debug("Removing inactive peer connection: {}", peer);
                             }

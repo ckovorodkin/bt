@@ -16,7 +16,6 @@
 
 package bt.net;
 
-import bt.logging.MDCWrapper;
 import bt.module.PeerConnectionSelector;
 import bt.net.pipeline.ChannelHandlerContext;
 import bt.service.IRuntimeLifecycleBinder;
@@ -35,6 +34,8 @@ import java.util.Iterator;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static bt.logging.MDCWrapper.withMDCRemoteAddress;
 
 public class DataReceivingLoop implements Runnable, DataReceiver {
     private static final Logger LOGGER = LoggerFactory.getLogger(DataReceivingLoop.class);
@@ -127,7 +128,7 @@ public class DataReceivingLoop implements Runnable, DataReceiver {
                 while (selectedKeys.hasNext()) {
                     final SelectionKey selectionKey = selectedKeys.next();
                     final SocketAddress remoteSocketAddress = getSocketAddress(selectionKey);
-                    new MDCWrapper().putRemoteAddress(remoteSocketAddress).run(() -> {
+                    withMDCRemoteAddress(remoteSocketAddress).run(() -> {
                         try {
                             // do not remove the key if it hasn't been processed,
                             // we'll try again in the next loop iteration

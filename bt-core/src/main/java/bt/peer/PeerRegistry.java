@@ -18,7 +18,6 @@ package bt.peer;
 
 import bt.event.EventSink;
 import bt.event.PeerSourceType;
-import bt.logging.MDCWrapper;
 import bt.metainfo.Torrent;
 import bt.metainfo.TorrentId;
 import bt.net.InetPeer;
@@ -49,6 +48,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
+
+import static bt.logging.MDCWrapper.withMDCRemoteAddress;
 
 /**
  *<p><b>Note that this class implements a service.
@@ -217,7 +218,7 @@ public class PeerRegistry implements IPeerRegistry {
         if (isLocal(peer)) {
             return;
         }
-        new MDCWrapper().putRemoteAddress(peer).run(() -> {
+        withMDCRemoteAddress(peer).run(() -> {
             cache.store(peer);
             eventSink.firePeerDiscovered(torrentId, peer, peerSourceType);
         });

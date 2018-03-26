@@ -16,7 +16,6 @@
 
 package bt.net;
 
-import bt.logging.MDCWrapper;
 import bt.metainfo.TorrentId;
 import bt.protocol.Message;
 import bt.runtime.Config;
@@ -34,6 +33,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import static bt.logging.MDCWrapper.withMDCRemoteAddress;
 
 /**
  * Default single-threaded message dispatcher implementation.
@@ -124,9 +125,7 @@ public class MessageDispatcher implements IMessageDispatcher {
                     if (connection == null || connection.isClosed()) {
                         return;
                     }
-                    new MDCWrapper()
-                            .putRemoteAddress(connectionKey.getPeer())
-                            .run(() -> biConsumer.accept(connection, items));
+                    withMDCRemoteAddress(connectionKey.getPeer()).wrap(biConsumer).accept(connection, items);
                 });
             });
         }

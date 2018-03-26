@@ -22,13 +22,34 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
-public class MDCWrapper {
+public class MDCWrapper extends AbstractExecutionWrapper {
     public static final String REMOTE_ADDRESS = "remoteAddress";
 
     private final Map<String, Object> context;
 
     public MDCWrapper() {
         context = new HashMap<>();
+    }
+
+    public static MDCWrapper withMDC() {
+        return new MDCWrapper();
+    }
+
+    public static MDCWrapper withMDCRemoteAddress(Object value) {
+        return withMDC().andRemoteAddress(value);
+    }
+
+    public static MDCWrapper withMDCKey(String key, Object value) {
+        return withMDC().andKey(key, value);
+    }
+
+    public MDCWrapper andRemoteAddress(Object value) {
+        return andKey(REMOTE_ADDRESS, value);
+    }
+
+    public MDCWrapper andKey(String key, Object value) {
+        context.put(key, value);
+        return this;
     }
 
     public MDCWrapper putRemoteAddress(Object value) {
@@ -40,21 +61,28 @@ public class MDCWrapper {
         return this;
     }
 
-    public <U> U supply(Supplier<U> supplier) {
+    @Override
+    protected boolean isBypass() {
+        return context.isEmpty();
+    }
+
+    @Override
+    protected void wrapAndRun(Runnable action) {
         final Map<String, String> current = MDC.getCopyOfContextMap();
         try {
             updateMDC();
-            return supplier.get();
+            action.run();
         } finally {
             MDC.setContextMap(current);
         }
     }
 
-    public void run(Runnable runnable) {
+    @Override
+    protected <U> U wrapAndSupply(Supplier<U> supplier) {
         final Map<String, String> current = MDC.getCopyOfContextMap();
         try {
             updateMDC();
-            runnable.run();
+            return supplier.get();
         } finally {
             MDC.setContextMap(current);
         }

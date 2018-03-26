@@ -18,7 +18,6 @@ package bt.net;
 
 import bt.CountingThreadFactory;
 import bt.event.EventSink;
-import bt.logging.MDCWrapper;
 import bt.metainfo.TorrentId;
 import bt.runtime.Config;
 import bt.service.IRuntimeLifecycleBinder;
@@ -33,6 +32,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static bt.logging.MDCWrapper.withMDCRemoteAddress;
 
 public class ConnectionSource implements IConnectionSource {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConnectionSource.class);
@@ -142,7 +143,7 @@ public class ConnectionSource implements IConnectionSource {
                 return connection;
             }
 
-            connection = CompletableFuture.supplyAsync(() -> new MDCWrapper().putRemoteAddress(peer).supply(() -> {
+            connection = CompletableFuture.supplyAsync(withMDCRemoteAddress(peer).wrap(() -> {
                 try {
                     ConnectionResult connectionResult =
                             connectionFactory.createOutgoingConnection(peer, torrentId);
@@ -162,7 +163,7 @@ public class ConnectionSource implements IConnectionSource {
                     }
                 }
             }), connectionExecutor)
-                    .whenComplete((acquiredConnection, throwable) -> new MDCWrapper().putRemoteAddress(peer).run(() -> {
+                    .whenComplete(withMDCRemoteAddress(peer).wrap((acquiredConnection, throwable) -> {
                         if (throwable != null) {
                             if (LOGGER.isDebugEnabled()) {
                                 LOGGER.debug("Failed to establish outgoing connection to peer: " + peer, throwable);

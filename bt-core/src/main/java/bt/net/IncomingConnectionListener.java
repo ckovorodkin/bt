@@ -17,7 +17,6 @@
 package bt.net;
 
 import bt.CountingThreadFactory;
-import bt.logging.MDCWrapper;
 import bt.runtime.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +24,8 @@ import org.slf4j.LoggerFactory;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static bt.logging.MDCWrapper.withMDCRemoteAddress;
 
 public class IncomingConnectionListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(IncomingConnectionListener.class);
@@ -64,42 +65,38 @@ public class IncomingConnectionListener {
                             return;
                         }
 
-                        new MDCWrapper()
-                                .putRemoteAddress(connectionRoutine.getRemoteAddress())
-                                .run(() -> {
-                                    if (connectionPool.mightAddIncomingConnection(connectionRoutine.getRemoteAddress())) {
-                                        establishConnection(connectionRoutine);
-                                    } else {
-                                        if (LOGGER.isDebugEnabled()) {
-                                            LOGGER.debug(
-                                                    "Rejecting incoming connection from {} due to exceeding of connections limit",
-                                                    connectionRoutine.getRemoteAddress()
-                                            );
-                                        }
-                                        connectionRoutine.cancel();
-                                    }
-                                });
+                        withMDCRemoteAddress(connectionRoutine.getRemoteAddress()).run(() -> {
+                            if (connectionPool.mightAddIncomingConnection(connectionRoutine.getRemoteAddress())) {
+                                establishConnection(connectionRoutine);
+                            } else {
+                                if (LOGGER.isDebugEnabled()) {
+                                    LOGGER.debug(
+                                            "Rejecting incoming connection from {} due to exceeding of connections limit",
+                                            connectionRoutine.getRemoteAddress()
+                                    );
+                                }
+                                connectionRoutine.cancel();
+                            }
+                        });
                     }}));
     }
 
     private void establishConnection(ConnectionRoutine connectionRoutine) {
-        connectionExecutor.submit(() -> new MDCWrapper()
-                .putRemoteAddress(connectionRoutine.getRemoteAddress())
-                .run(() -> {
-                    boolean added = false;
-                    if (!shutdown) {
-                        ConnectionResult connectionResult = connectionRoutine.establish();
-                        if (connectionResult.isSuccess()) {
-                            if (!shutdown && connectionPool.mightAddIncomingConnection(connectionRoutine.getRemoteAddress())) {
-                                connectionPool.addConnectionIfAbsent(connectionResult.getConnection());
-                                added = true;
-                            }
-                        }
+        connectionExecutor.submit(withMDCRemoteAddress(connectionRoutine.getRemoteAddress()).wrap(() -> {
+            boolean added = false;
+            if (!shutdown) {
+                ConnectionResult connectionResult = connectionRoutine.establish();
+                if (connectionResult.isSuccess()) {
+                    if (!shutdown && connectionPool.mightAddIncomingConnection(connectionRoutine.getRemoteAddress())) {
+                        connectionPool.addConnectionIfAbsent(connectionResult.getConnection());
+                        added = true;
                     }
-                    if (!added) {
-                        connectionRoutine.cancel();
-                    }
-                }));
+                }
+            }
+            if (!added) {
+                connectionRoutine.cancel();
+            }
+        }));
     }
 
     public void shutdown() {

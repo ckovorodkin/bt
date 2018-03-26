@@ -19,7 +19,6 @@ package bt.torrent.messaging;
 import bt.event.EventSink;
 import bt.event.EventSource;
 import bt.event.PeerSourceType;
-import bt.logging.MDCWrapper;
 import bt.metainfo.TorrentId;
 import bt.net.IConnectionSource;
 import bt.net.IPeerConnectionPool;
@@ -43,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static bt.event.PeerSourceType.INCOMING;
+import static bt.logging.MDCWrapper.withMDCRemoteAddress;
 import static bt.torrent.messaging.PeerState.ACTIVE;
 import static bt.torrent.messaging.PeerState.CONNECTING;
 import static bt.torrent.messaging.PeerState.DISCONNECTED;
@@ -148,7 +148,7 @@ public class PeerManager {
                             peerInfo.getPeer().getInetSocketAddress()
                     ))
                     .filter(peerInfo -> peerInfo.setPeerState(timestamp, DISCONNECTED, CONNECTING))
-                    .forEach(peerInfo -> new MDCWrapper().putRemoteAddress(peerInfo.getPeer()).run(() -> {
+                    .forEach(peerInfo -> withMDCRemoteAddress(peerInfo.getPeer()).run(() -> {
                         if (LOGGER.isDebugEnabled()) {
                             LOGGER.debug("Reconnect peer: {}", peerInfo.getPeer());
                         }
